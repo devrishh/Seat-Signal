@@ -1,0 +1,100 @@
+{
+ "days": {
+  "0": [
+   "2026_10_14",
+   "2026_10_15",
+   "2026_10_16"
+  ],
+  "1": [],
+  "2": [
+   "2026_10_18"
+  ]
+ },
+ "saturday": "average of weekday and Sunday speeds (no Saturday GPS processed)",
+ "min_seconds_per_cell": 600,
+ "weekday_city_kmh_by_hour": [
+  18.7,
+  20.3,
+  21.0,
+  21.1,
+  21.6,
+  23.0,
+  20.2,
+  17.5,
+  16.1,
+  14.5,
+  14.5,
+  14.2,
+  13.4,
+  13.5,
+  13.5,
+  13.8,
+  13.8,
+  13.1,
+  11.2,
+  11.2,
+  12.5,
+  14.8,
+  17.8,
+  18.7
+ ],
+ "sunday_city_kmh_by_hour": [
+  17.3,
+  19.6,
+  20.7,
+  21.0,
+  21.9,
+  23.1,
+  21.1,
+  19.8,
+  18.1,
+  17.3,
+  16.8,
+  16.0,
+  14.7,
+  14.8,
+  14.9,
+  14.6,
+  14.4,
+  13.9,
+  13.2,
+  13.6,
+  14.5,
+  15.9,
+  17.7,
+  18.5
+ ],
+ "bus_time_in_cells_with_own_speed_weekday": 0.9961040019323919,
+ "holdout": {
+  "test_day": "2026_10_16",
+  "train_days": [
+   "2026_10_14",
+   "2026_10_15"
+  ],
+  "cells": 31179,
+  "median_abs_pct_error": 9.7,
+  "within_20pct": 74.0
+ },
+ "per_day": {
+  "2026_10_14": {
+   "pings_sampled": 7379725,
+   "sample_every": 3,
+   "buses": 6032
+  },
+  "2026_10_15": {
+   "pings_sampled": 7615635,
+   "sample_every": 3,
+   "buses": 6093
+  },
+  "2026_10_16": {
+   "pings_sampled": 7481370,
+   "sample_every": 3,
+   "buses": 6064
+  },
+  "2026_10_18": {
+   "pings_sampled": 7550482,
+   "sample_every": 3,
+   "buses": 6103
+  }
+ }
+}
