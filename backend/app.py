@@ -34,6 +34,9 @@ with gzip.open(MODEL_PATH, "rb") as f:
     M = pickle.load(f)
 ROUTES, STOPS, STOP_ROUTES, META = M["routes"], M["stops"], M["stop_routes"], M["meta"]
 TRAVEL = Travel(ROUTES, ROOT / "data")
+# e-ticket fare by route and number of stops ridden (pipeline/build_fares.py); optional
+_fp = ROOT / "data" / "fares.json"
+FARES = json.loads(_fp.read_text()) if _fp.exists() else {}
 DAY = {"weekday": 0, "saturday": 1, "sunday": 2}
 TRANSFER_MIN = 7          # walking + waiting at an interchange
 MAX_TRANSFER_SCAN = 45    # stops scanned along each leg when looking for interchanges
@@ -132,6 +135,15 @@ def ride(rid: str, i: int, j: int, minute: float, d: int) -> dict:
                 km=km, time_source=source)
 
 
+def fare_of(rid: str, i: int, j: int) -> float | None:
+    """Rupees per passenger for an e-ticket from stop i to stop j, from the October tickets."""
+    f = FARES.get(rid)
+    if f and 0 < j - i <= len(f):
+        return f[j - i - 1]
+    mf = ROUTES[rid].get("median_fare")
+    return None if mf is None else round(mf * 2) / 2
+
+
 def leg_out(rid, i, j, minute, d) -> dict:
     r = ROUTES[rid]
     x = ride(rid, i, j, minute, d)
@@ -141,7 +153,7 @@ def leg_out(rid, i, j, minute, d) -> dict:
                 minutes=round(x["minutes"]), crowd=round(x["crowd"]), peak=round(x["peak"]),
                 level=level(x["crowd"]), seat_chance=seat_chance(x["board_crowd"]),
                 profile=x["profile"], km=None if x["km"] is None else round(x["km"], 1),
-                time_source=x["time_source"],
+                time_source=x["time_source"], fare=fare_of(rid, i, j),
                 stop_names=[STOPS[s]["name"] for s in r["stops"][i:j + 1]])
 
 
@@ -163,6 +175,7 @@ def evaluate(option: tuple, minute: float, d: int) -> dict:
                 seat_chance=legs[0]["seat_chance"], stops=int(w.sum()),
                 km=None if any(l["km"] is None for l in legs) else round(sum(l["km"] for l in legs), 1),
                 time_source="gps" if all(l["time_source"] == "gps" for l in legs) else "estimate",
+                fare=None if any(l["fare"] is None for l in legs) else sum(l["fare"] for l in legs),
                 confidence="low" if any(l["route"]["low_data"] for l in legs) else "high")
 
 
@@ -314,9 +327,15 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
     fastest = min(opts, key=lambda o: o["minutes"])
     calmest = min(reliable, key=lambda o: (o["crowd"], o["minutes"]))
     best = min(opts, key=lambda o: o["score"])
+    cost = lambda o: (o["fare"] if o["fare"] is not None else 1e9, o["minutes"])
+    cheapest = min(reliable, key=cost)
+    if cheapest["fare"] is None or (best["fare"] is not None and cheapest["fare"] >= best["fare"]):
+        cheapest = None                      # only worth a tag when it saves money over the recommended trip
     for o in opts:
-        o["tags"] = [t for t, x in (("Best overall", best), ("Fastest", fastest), ("Least crowded", calmest)) if x is o]
-    key = {"fastest": lambda o: o["minutes"], "comfort": lambda o: (o["crowd"], o["minutes"])}.get(prefer, lambda o: o["score"])
+        o["tags"] = [t for t, x in (("Best overall", best), ("Fastest", fastest), ("Least crowded", calmest),
+                                    ("Cheapest", cheapest)) if x is o]
+    key = {"fastest": lambda o: o["minutes"], "comfort": lambda o: (o["crowd"], o["minutes"]),
+           "cheapest": cost}.get(prefer, lambda o: o["score"])
     opts.sort(key=key)
     # When should you leave? Re-evaluate the recommended option across nearby departures.
     times = []
@@ -470,7 +489,8 @@ def besttime(origin: str = Query(..., alias="from"), dest: str = Query(..., alia
                           + (25 if o["confidence"] == "low" else 0))
         o = min(opts, key=lambda x: x["score"])
         slots.append(dict(depart=fmt(m), crowd=o["crowd"], minutes=o["minutes"], level=o["level"],
-                          routes=[l["route"]["number"] for l in o["legs"]], seat_chance=o["seat_chance"]))
+                          routes=[l["route"]["number"] for l in o["legs"]], seat_chance=o["seat_chance"],
+                          fare=o["fare"]))
     day_part = [s for s in slots if 360 <= m2s(s["depart"]) <= 1320]
     best = min(day_part, key=lambda s: (s["crowd"], s["minutes"]))
     worst = max(day_part, key=lambda s: s["crowd"])
@@ -487,6 +507,10 @@ def validation():
         geometry=TRAVEL.stats,
         tickets_timed_by_route_geometry=TRAVEL.coverage(ROUTES),
     )
+    fc = ROOT / "data" / "fares_check.json"
+    v["fares"] = json.loads(fc.read_text()) if fc.exists() else None
+    st = ROOT / "data" / "stability.json"
+    v["stability"] = json.loads(st.read_text()) if st.exists() else None
     return v
 
 

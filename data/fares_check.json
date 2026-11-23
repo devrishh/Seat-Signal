@@ -1,0 +1,10 @@
+{
+ "routes": 1792,
+ "from_tickets": 38167,
+ "filled": 13610,
+ "tickets_used": 2502990,
+ "tickets_checked": 2502990,
+ "exact_share": 0.7514,
+ "mean_abs_error_rs": 1.3,
+ "within_5_rs": 0.9643
+}

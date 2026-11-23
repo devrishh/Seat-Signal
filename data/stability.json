@@ -1,0 +1,33 @@
+{
+ "full_weeks": [
+  41,
+  42,
+  43,
+  44
+ ],
+ "route_halfhours": 5322,
+ "corr_min": 0.875,
+ "corr_mean": 0.892,
+ "median_rel_change": [
+  0.227,
+  0.235,
+  0.222
+ ],
+ "busiest_slot_by_week": {
+  "41": 17,
+  "42": 18,
+  "43": 18,
+  "44": 18
+ },
+ "am_peak_vs_midday_by_week": {
+  "41": 3.47,
+  "42": 3.99,
+  "43": 3.85,
+  "44": 3.96
+ },
+ "top20_route_overlap": [
+  0.85,
+  0.85,
+  0.9
+ ]
+}

@@ -25,6 +25,7 @@ const level = (c) => (c < 35 ? "Comfortable" : c < 60 ? "Moderate" : c < 80 ? "B
 const fillOf = (c) => css(FILL[level(c)]);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const inr = (n) => Number(n).toLocaleString("en-IN");
+const rupees = (n) => `₹${Number(n) % 1 ? Number(n).toFixed(2) : Number(n)}`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const q = () => `time=${hhmm(state.minute)}&day=${state.day}`;
 /* A trip can be planned for its own day and time (in its link: #/plan?...&time=09:00&day=weekday).
@@ -535,7 +536,7 @@ async function pagePlan(params) {
             <label class="field"><span class="t-small-strong">Time</span><span class="input">${IC.clock}<input type="time" id="p-time" min="05:00" max="23:30" step="300" /></span></label>
           </div>
           <p class="t-small-strong label">Sort by</p>
-          <div class="segmented" id="seg-prefer"><button type="button" data-v="balanced">Balanced</button><button type="button" data-v="fastest">Fastest</button><button type="button" data-v="comfort">Calmest</button></div>
+          <div class="segmented" id="seg-prefer"><button type="button" data-v="balanced">Balanced</button><button type="button" data-v="fastest">Fastest</button><button type="button" data-v="comfort">Calmest</button><button type="button" data-v="cheapest">Cheapest</button></div>
           <button class="btn primary" type="submit" id="plan-btn">Show buses</button>
         </form>
         <div id="plan-map-home"><div class="card map-card" id="plan-map-card">
@@ -733,13 +734,14 @@ function renderPlan(p, from, to) {
     const chain = o.legs.map((l) => plate(l.route, "sm")).join(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
     const legs = o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}Change buses at ${esc(l.board)}. Allow about 7 minutes.</div>` : ""}
       <div class="leg"><div class="leg-head">${plate(l.route, "sm")}<span><b>${esc(l.board)} to ${esc(l.alight)}</b>
-      <small>${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
+      <small>${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")}${l.fare != null ? ` · ${rupees(l.fare)}` : ""} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
       ${stopsList(l.stop_names, l.profile)}</div>`).join("") + stopsKey();
     return `<article class="card opt ${o.tags.includes("Best overall") ? "best" : ""} ${i === 0 ? "open" : ""}">
       ${tags ? `<div class="opt-tags">${tags}</div>` : ""}
       <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}</p></div><div class="opt-chain">${chain}</div></div>
       ${seatMeter(o)}
       <div class="kv"><span>Arrives (expected)</span><b class="tnum">${clock(toMin(o.arrive))}</b></div>
+      ${o.fare != null ? `<div class="kv"><span>Fare per person, e-ticket${o.legs.length > 1 ? `<br><small class="t-caption">one ticket per bus: ${o.legs.map((l) => rupees(l.fare)).join(" + ")}</small>` : ""}</span><b class="tnum">${rupees(o.fare)}</b></div>` : ""}
       ${o.km != null ? `<div class="kv"><span>Distance by bus</span><b class="tnum">${o.km} km</b></div>` : ""}
       <div class="kv"><span>Crowding</span><b class="tnum">${o.crowd} of 100 · ${o.level}</b></div>
       <div class="kv"><span>Chance of a seat when you board</span><b class="tnum">${o.seat_chance}%</b></div>
@@ -757,7 +759,7 @@ function renderPlan(p, from, to) {
     ${p.only_low_data ? notice("warn", "Few tickets on these routes", "Every bus between these stops has thin or unclear ticket data for October, so these times and crowding levels are rough.", IC.alert) : ""}
     <div>${cards}</div>
     ${p.hidden_low_data ? `<p class="t-small muted" style="margin-top:12px">${p.hidden_low_data === 1 ? "1 more route also runs between these stops. It's hidden because its October ticket data is too thin to trust its times." : `${p.hidden_low_data} more routes also run between these stops. They're hidden because their October ticket data is too thin to trust their times.`}</p>` : ""}${curve}
-    ${notice("info", "How these times are worked out", "Each ride uses the route's real distance (Delhi bus GTFS) and the speed buses actually moved at on that stretch of road at that time of day, measured by GPS on 14, 15, 16 and 18 October 2026. Waiting time for the bus isn't included. Crowding comes from October 2026 e-tickets.", IC.info)}</div>`;
+    ${notice("info", "How these times are worked out", "Each ride uses the route's real distance (Delhi bus GTFS) and the speed buses actually moved at on that stretch of road at that time of day, measured by GPS on 14, 15, 16 and 18 October 2026. Waiting time for the bus isn't included. Crowding comes from October 2026 e-tickets. Fares are what October e-tickets cost for the same ride: the DTC fare less the 10% e-ticket discount.", IC.info)}</div>`;
   $$(".opt + .opt", res).forEach((el) => (el.style.marginTop = "12px"));
   const read = $(".bars-read", res);
   $$(".bars .b", res).forEach((b) => (b.onclick = b.onmouseenter = b.onfocus = () => {
@@ -801,7 +803,8 @@ async function pageBest(params) {
       <div class="kv"><span>Crowding</span><b class="tnum">${s.crowd} of 100 · ${s.level}</b></div>
       <div class="kv"><span>Travel time (estimate)</span><b class="tnum">${s.minutes} min</b></div>
       <div class="kv"><span>Buses</span><b>${s.routes.map((n) => esc(routeName(n))).join(" then ")}</b></div>
-      <div class="kv"><span>Chance of a seat</span><b class="tnum">${s.seat_chance}%</b></div>`;
+      <div class="kv"><span>Chance of a seat</span><b class="tnum">${s.seat_chance}%</b></div>
+      ${s.fare != null ? `<div class="kv"><span>Fare per person, e-ticket</span><b class="tnum">${rupees(s.fare)}</b></div>` : ""}`;
     box.innerHTML = `<div class="page" style="margin:0">
       <div class="card list-card"><div class="kv"><span>Trip</span><b style="white-space:normal;text-align:right">${esc(b.origin)} to ${esc(b.destination)}</b></div><div class="kv"><span>Day</span><b>${DAYS[b.day]}</b></div></div>
       <div class="big-best">
@@ -1022,6 +1025,8 @@ async function pageAbout() {
           <div class="kv"><span>Tickets on routes with a measured length</span><b class="tnum">${pct((cov.gtfs || 0) + (cov.stops || 0))}</b></div>
           <div class="kv"><span>Average bus speed, weekday 6 pm</span><b class="tnum">${kmh[18]} km/h</b></div>
           <div class="kv"><span>Average bus speed, weekday 3 am</span><b class="tnum">${kmh[3]} km/h</b></div>
+          ${v.fares ? `<div class="kv"><span>E-tickets whose price our fare table matches exactly</span><b class="tnum">${pct(v.fares.exact_share)}</b></div>
+          <div class="kv"><span>Fare table, typical error per ticket</span><b class="tnum">${rupees(v.fares.mean_abs_error_rs)}</b></div>` : ""}
           ${sp.holdout ? `<div class="kv"><span>Speeds on ${date(sp.holdout.test_day.replace(/_/g, "-"))} predicted from earlier days, typical error</span><b class="tnum">${sp.holdout.median_abs_pct_error}%</b></div>` : ""}</div>
       </div><div>
         <div class="section-title"><h2 class="t-heading">Bus speed through the day</h2></div>
@@ -1029,6 +1034,14 @@ async function pageAbout() {
           <svg id="speed-chart" class="chart" viewBox="0 0 340 120" preserveAspectRatio="none" role="img" aria-label="Average weekday bus speed by hour"></svg>
           <div class="axis t-caption"><span>12 am</span><span>6 am</span><span>12 pm</span><span>6 pm</span><span>11 pm</span></div></div>
       </div></div>` : ""}
+      ${v.stability ? (() => { const st = v.stability, pk = Object.values(st.busiest_slot_by_week), am = Object.values(st.am_peak_vs_midday_by_week);
+        return `<div class="section-title"><h2 class="t-heading">Week to week</h2><span class="t-small muted">${st.full_weeks.length} full weeks of October weekdays, compared with each other</span></div>
+        <div class="card list-card">
+          <div class="kv"><span>Riders by route and half hour, how closely one week matches another</span><b class="tnum">correlation ${st.corr_min.toFixed(2)} or higher</b></div>
+          <div class="kv"><span>Typical change in one route's half hour from one week to the next</span><b class="tnum">${Math.round(Math.min(...st.median_rel_change) * 100)} to ${Math.round(Math.max(...st.median_rel_change) * 100)}%</b></div>
+          <div class="kv"><span>Busiest weekday half hour, each week</span><b class="tnum">${[...new Set(pk)].map((x) => clock(x * 30)).join(" or ")}</b></div>
+          <div class="kv"><span>Morning rush compared with midday, each week</span><b class="tnum">${Math.min(...am).toFixed(1)} to ${Math.max(...am).toFixed(1)} times</b></div>
+          <div class="kv"><span>Of the 20 busiest routes, how many stay in the top 20 the next week</span><b class="tnum">${Math.round(Math.min(...st.top20_route_overlap) * 20)} to ${Math.round(Math.max(...st.top20_route_overlap) * 20)}</b></div></div>`; })() : ""}
       <div class="section-title"><h2 class="t-heading">How it works</h2></div>
       <div class="card method"><ol>
         <li><b>Stops in the right order.</b> Each route is lined up with the same route in the Delhi bus timetable (GTFS), matching stop names among that route's own stops. A stop the timetable doesn't list goes where its riders' tickets say it belongs. Routes the timetable doesn't know are ordered from millions of ticket start and end pairs, because people only ride forwards.</li>
@@ -1036,6 +1049,7 @@ async function pageAbout() {
         <li><b>Weekdays, Saturdays, and Sundays or holidays are kept apart.</b> Holidays are spotted as weekdays with much lower demand.</li>
         <li><b>A crowd index from 0 to 100.</b> It's calibrated across the whole network, so busy corridors and quiet hours both read clearly.</li>
         <li><b>Travel times from real roads and real buses.</b> Each ride is timed stretch by stretch: the stretch's length comes from the timetable's stop positions, and its speed from how fast GPS-tracked buses moved through that part of Delhi in that half hour, stops at signals and bus stops included. Buses parked at terminals are left out.</li>
+        <li><b>Fares from what riders paid.</b> For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. Fares come in fixed steps (the DTC fare less the 10% e-ticket discount), and a longer ride never costs less. A trip with a change of bus needs one ticket per bus.</li>
         <li><b>Live by default.</b> The site follows the current time in Delhi and moves on every half hour. Crowding is what's typical for that time, learned from October tickets, not a live count.</li>
       </ol></div>
       ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Routes with fewer than 600 tickets are marked as limited data. The timetable is the 2022–23 edition, so a few newer routes are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Times don't include waiting for the bus.`, IC.alert)}
