@@ -405,7 +405,7 @@ async function stopsLayer(m, { pick } = {}) {
 /* Draw one ride (a leg, or a whole route): white casing, crowd-coloured stretches you can hover
    and tap, fixed-size stop dots. Returns handles to recolour it and to highlight a stop. */
 function drawRide(layer, shape, profile, names, { ends = true, keys = [], map = null, stopInfo = null, readout = null } = {}) {
-  const segs = shape.segments || [], dash = shape.approx ? "2 9" : null, lines = [], dots = [];
+  const segs = shape.segments || [], dash = null, lines = [], dots = [];   // solid lines even where the path is approximate
   segs.forEach((pts) => pts.length > 1 && L.polyline(pts, { color: "#fff", weight: 10, opacity: 0.95, lineCap: "round", interactive: false }).addTo(layer));
   segs.forEach((pts, k) => {
     if (pts.length < 2) { lines.push(null); return; }
@@ -686,7 +686,7 @@ function showTripOnMap(o, i) {
   $("#plan-map-title").textContent = `Trip ${i + 1}: ${o.legs.map((l) => l.route.number).join(" then ")}`;
   const approx = o.legs.some((l) => l.shape.approx);
   // V. the zoom hint only on Trip 1's map, where people meet the map first
-  $("#plan-map-key").innerHTML = mapKey(approx ? `<span class="muted">Dotted: approximate path</span>` : "")
+  $("#plan-map-key").innerHTML = mapKey(approx ? `<span class="muted">Path approximate: straight between stops</span>` : "")
     + (i === 0 ? `<p class="t-caption muted map-hint">Tap a stop for details. Zoom in to see other stops nearby.</p>` : "");
   $$("#results .opt").forEach((el, j) => el.classList.toggle("on-map", j === i));
 }
@@ -903,7 +903,7 @@ async function pageRoute(id) {
         <p class="t-small muted">The line is coloured by how full the bus usually is on each stretch. Hover or tap a stretch or a stop for details, or tap a half hour in "Through the day" to see the route at that time.</p>
         <div class="map" id="route-map" role="region" aria-label="Map of route ${esc(r.route.number)}"></div>
         <p class="map-read t-small" id="route-map-read" aria-live="polite">${READ_HINT}</p>
-        ${mapKey(r.shape.approx ? `<span class="muted">Dotted: approximate path</span>` : "")}
+        ${mapKey(r.shape.approx ? `<span class="muted">Path approximate: straight between stops</span>` : "")}
         ${stopsList(r.stops.map((x) => x.name), r.segments, r.stops.map((x) => x.key), "route-stops")}</div></div></div>`;
     wireHeat();
     const m = makeMap($("#route-map"));
