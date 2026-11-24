@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+carto_key.txt
+.env
+work/gps/log_*.txt
