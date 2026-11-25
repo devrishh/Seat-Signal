@@ -101,6 +101,6 @@ index.py             entry point for Vercel
 ## Data and credits
 
 - ONDC bus e-ticketing and DTC bus GPS, Delhi, October 2026: Transport Stack and IIIT Delhi.
-- Delhi bus GTFS, 2022 to 23 edition (DIMTS and DTC), from the Transitland feed archive.
+- Delhi bus GTFS static, feed version 32 (DTC and DIMTS), from Delhi Transport Stack.
 - Maps: [Leaflet](https://leafletjs.com) 1.9.4 (BSD-2-Clause), with CARTO basemap tiles of © OpenStreetMap contributors.
 - Fonts: Hanken Grotesk and Archivo, SIL Open Font License.

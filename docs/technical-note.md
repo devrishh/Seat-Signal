@@ -6,9 +6,9 @@ This note covers how we turn tickets into crowding, what we assume, and where th
 
 ## Method
 
-**Cleaning.** The October file has 2,559,899 e-tickets. We clean stop names ("Bdr" becomes "Border", "(T)" is dropped) and keep 2,502,990 tickets (97.8%). The rest start and end at the same stop, travel against the route's stop order, or use a stop seen fewer than 5 times on that route.
+**Cleaning.** The October file has 2,559,899 e-tickets. We clean stop names ("Bdr" becomes "Border", "(T)" is dropped) and keep 2,523,265 tickets (98.6%). The rest start and end at the same stop, travel against the route's stop order, or use a stop seen fewer than 5 times on that route.
 
-**Stop order.** Tickets carry stop names but no sequence. We match each route to the same route in the Delhi bus GTFS (2022 to 23 edition), comparing names only against that route's own stops. Stops the GTFS can't place go where their riders' tickets put them. Routes the GTFS doesn't have get an order from ticket start and end pairs. 84.7% of tickets are on GTFS-ordered routes.
+**Stop order.** Tickets carry stop names but no sequence. We match each route to the same route in the Delhi bus GTFS (the current feed, version 32, from Delhi Transport Stack), comparing names only against that route's own stops. Stops the GTFS can't place go where their riders' tickets put them. Routes the GTFS doesn't have get an order from ticket start and end pairs. 98.4% of tickets are on GTFS-ordered routes.
 
 **Riders on board.** Each ticket adds its `passenger_count` to every stretch from its start stop to its end stop, moving forward about 2.5 minutes per stop. We sum this over October and divide by the number of days of each type (weekday, Saturday, Sunday or holiday). That gives the average riders on board for every route, direction, stretch and half hour.
 
@@ -18,7 +18,7 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 
 **Travel time.** Each stretch's length comes from GTFS stop positions. Its speed is how fast GPS-tracked buses moved through that 1 km grid cell in that half hour, stops at signals included and layovers at terminals left out (GPS from 14, 15, 16 and 18 October). A change of bus adds 7 minutes and is only offered where both routes stop at the same place, because 140 stop names exist in more than one part of Delhi.
 
-**Fare.** For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. It matches the exact price paid on 75.1% of tickets, with a typical error of ₹1.30.
+**Fare.** For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. It matches the exact price paid on 78.6% of tickets, with a typical error of ₹1.08.
 
 ## Checks against known patterns
 
@@ -29,7 +29,7 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 | Weekday, Saturday, Sunday or holiday | 100,028, 79,496 and 49,155 e-tickets a day |
 | Holidays found from the data alone | 2 and 20 October |
 | Week to week, riders by route and half hour | correlation 0.88 or more between any two weeks; morning peak 3.5 to 4.0 times midday every week |
-| Stop order, independent of the tickets used to build it | 99.4% of tickets between two GTFS stops ride forwards |
+| Stop order, independent of the tickets used to build it | 99.7% of 2.4 million tickets between two GTFS stops ride forwards |
 | Speeds for 16 October predicted from 14 and 15 October | 9.7% typical error |
 
 ## Assumptions
@@ -44,6 +44,6 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 - Routes with fewer than 600 e-tickets in October. They're labelled "Limited data" and only appear in trip results when nothing better exists.
 - Late at night on any route, when there are few tickets.
 - Ring routes like the Mudrikas, where the stop order is hard to pin down.
-- About 15% of tickets are on routes newer than the 2022 to 23 GTFS (D-series, ML, airport routes). Their order comes from tickets, their time from the distance between end stops, and their map lines go straight between stops.
+- About 1.6% of tickets are on routes the current GTFS doesn't list. Their order comes from tickets, their time from the distance between end stops, and their map lines go straight between stops.
 - Saturdays. We had no Saturday GPS, so Saturday speeds are the average of weekday and Sunday.
 - Anything seasonal. One month can't show festivals, school holidays or the monsoon.

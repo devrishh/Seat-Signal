@@ -25,11 +25,10 @@ You can sort by fastest, calmest or cheapest. If leaving a bit earlier or later 
 
 For people who run the buses, there's a page ranking the busiest routes at any hour, the big routes with room to spare, and the ones filling up fastest. Every route and stop has its own crowding strip for the whole day.
 
-It follows the current time in Delhi by default, and you can switch to any day and time to plan ahead.
 
 ## How we estimate crowding
 
-1. We clean the stop names in the 2.56 million October e-tickets ("Bdr" and "Border" are the same stop) and keep 2.50 million that make sense.
+1. We clean the stop names in the 2.56 million October e-tickets ("Bdr" and "Border" are the same stop) and keep 2.52 million that make sense.
 2. The tickets don't say which order the stops come in, so we line each route up with the same route in the Delhi bus GTFS. For routes the GTFS doesn't have, we work the order out from the tickets themselves, since nobody rides backwards.
 3. Each ticket counts as one person on board on every stretch between their start and end stop, moving along the route in time.
 4. We average that over October, separately for weekdays, Saturdays, and Sundays or holidays, giving riders on board for each route, direction, stretch and half hour.
@@ -41,7 +40,7 @@ Travel times come from bus GPS: how fast buses really moved through each part of
 
 - ONDC bus e-ticketing, 1 to 31 October 2026, from Transport Stack (2,559,899 tickets)
 - DTC bus GPS for 14, 15, 16 and 18 October 2026, from Transport Stack
-- Delhi bus GTFS, 2022 to 23 edition, for stop positions and stop order
+- Delhi bus GTFS, the current feed (version 32) from Delhi Transport Stack, for stop positions and stop order
 
 ## Does it hold up?
 
@@ -50,13 +49,13 @@ We checked the estimates against things we already know about Delhi's buses, and
 - the morning rush (8 to 11 am) comes out 4.2 times busier than midday, and the busiest half hour is 9:00 am
 - weekdays carry about twice the riders of Sundays, and the two October holidays (2 and 20 October) stand out on their own
 - the four weeks of October look alike: riders by route and half hour correlate at 0.88 or more between any two weeks
-- 99.4% of tickets between two timetable stops travel forwards along the timetable's order, which tells us the stop order is right
+- 99.7% of tickets between two timetable stops travel forwards along the timetable's order, which tells us the stop order is right
 - speeds for 16 October, predicted from the two days before, are off by 9.7% on a typical stretch
 
 ## What we'd do in Phase 2
 
 - Add conductor (ETM) ticket counts to turn the crowd index into real numbers of people on board
 - Rebuild individual bus trips from vehicle numbers where they exist, and use bus length (9 m or 12 m) so the same load reads right on both
-- Use the current GTFS, which fixes the routes added since 2022
+- Draw each route along its real road path, using the shapes in the current GTFS
 - Use live GPS to show today's delays next to the usual crowding
 - Give operators a simple report of overloaded routes and hours, and where an extra bus would help most

@@ -332,7 +332,14 @@ const DELHI = [28.62, 77.2];
 const liveMaps = [];
 let stopsCache = null, configCache = null;
 const mapConfig = () => (configCache ||= api("/api/config").catch(() => ({ carto_key: "" })));
-const allStops = () => (stopsCache ||= api("/api/stops/map").then((rows) => rows.map(([key, name, lat, lon, volume, routes]) => ({ key, name, lat, lon, volume, routes }))));
+/* Some stops share exactly the same spot under two names ("Nehru Place Terminal" and "Nehru Place Bus Terminal").
+   Show one dot there, the busiest, so a tap opens the stop people mean. */
+const allStops = () => (stopsCache ||= api("/api/stops/map").then((rows) => {
+  const seen = new Set();
+  return rows.map(([key, name, lat, lon, volume, routes]) => ({ key, name, lat, lon, volume, routes }))
+    .sort((a, b) => b.volume - a.volume)
+    .filter((s) => { const k = `${s.lat.toFixed(4)},${s.lon.toFixed(4)}`; return seen.has(k) ? false : seen.add(k); });
+}));
 const mapsReady = () => typeof L !== "undefined";
 
 function makeMap(el, { center = DELHI, zoom = 11 } = {}) {
@@ -1052,7 +1059,7 @@ async function pageAbout() {
         <li><b>Fares from what riders paid.</b> For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. Fares come in fixed steps (the DTC fare less the 10% e-ticket discount), and a longer ride never costs less. A trip with a change of bus needs one ticket per bus.</li>
         <li><b>Live by default.</b> The site follows the current time in Delhi and moves on every half hour. Crowding is what's typical for that time, learned from October tickets, not a live count.</li>
       </ol></div>
-      ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Routes with fewer than 600 tickets are marked as limited data. The timetable is the 2022–23 edition, so a few newer routes are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Times don't include waiting for the bus.`, IC.alert)}
+      ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Routes with fewer than 600 tickets are marked as limited data. A few routes (about 2% of tickets) aren't in the current timetable, so they are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Times don't include waiting for the bus.`, IC.alert)}
       <p class="t-small muted">Seat Signal is built for the Transport Stack Hackathon 2026, Delhi, Problem 2: crowdedness-aware journey planner. Data: ONDC bus e-ticketing from Transport Stack and IIIT Delhi. API documentation: <a class="link" href="/docs">/docs</a>.</p></div>`;
     const wkB = v.weekday_boardings_by_slot.slice(10, 47), suB = v.weekend_boardings_by_slot.slice(10, 47);
     iChart($("#about-chart"), [{ values: suB, color: css("--silver-edge"), width: 1.5 }, { values: wkB, color: css("--brand"), fill: 0.07, marker: true }], { max: Math.max(...wkB), index: 8,

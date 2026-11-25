@@ -12,16 +12,16 @@ numbers on its *How we know* page, read live from `/api/validation`. Week-to-wee
 | | |
 |---|---:|
 | E-tickets in the October 2026 file | 2,559,899 |
-| Tickets used in the crowding model | **2,502,990 (97.8%)** |
+| Tickets used in the crowding model | **2,523,265 (98.6%)** |
 | Dropped: origin and destination are the same stop | 107 |
-| Dropped: travel against the route's stop order | 28,518 (1.1%) |
+| Dropped: travel against the route's stop order | 8,243 (0.3%) |
 | Dropped: noise stops (fewer than 5 tickets on that route) | the rest |
 | Route directions modelled | 1,792 |
 | Stops indexed (after cleaning names, e.g. "Bdr" → "Border", "(T)" removed) | 6,088 |
 | Bus GPS used for speeds | 14, 15, 16 October (weekdays) and 18 October (Sunday) |
 | Buses seen in the GPS per day | 6,032 – 6,103 |
 | GPS pings per day in the files / used (every 3rd ping) | about 29 million / about 7.5 million |
-| Static schedule (GTFS) for stop positions | Delhi bus GTFS, 2022–23 edition (DIMTS/DTC), Transitland archive |
+| Static schedule (GTFS) for stop positions | Delhi bus GTFS, feed version 32 (DTC/DIMTS), Delhi Transport Stack, updated November 2026 |
 
 ## 2. Is the stop order right?
 
@@ -32,14 +32,14 @@ GTFS doesn't know keep an order inferred from ticket start and end pairs.
 
 | | |
 |---|---:|
-| Routes ordered by the GTFS | 1,125 of 1,792 (**84.7% of tickets**) |
-| **Independent check:** tickets between two GTFS-placed stops that ride forwards | **99.4%** of 1,890,032 |
-| All tickets that ride forwards, every route | 98.9% |
-| Routes where at least 95% of tickets ride forwards | 92.4% |
+| Routes ordered by the GTFS | 1,644 of 1,792 (**98.4% of tickets**) |
+| **Independent check:** tickets between two GTFS-placed stops that ride forwards | **99.7%** of 2,396,819 |
+| All tickets that ride forwards, every route | 99.7% |
+| Routes where at least 95% of tickets ride forwards | 96.8% |
 | Busiest routes: 717A UP / DOWN, 729 DOWN / UP | 99.1% / 99.96%, 99.99% / 99.8% |
 
 The independent check matters: the GTFS was made years earlier by a different organisation,
-yet riders in October 2026 travel along it 99.4% of the time. If the matching were wrong,
+yet riders in October 2026 travel along it 99.7% of the time. If the matching were wrong,
 about half of those tickets would appear to travel backwards.
 
 Before the GTFS was added, the order inferred from tickets alone had 95.4% of tickets
@@ -56,7 +56,7 @@ bus stops. Buses standing still for 10 minutes or more (layovers at terminals) a
 
 | | |
 |---|---:|
-| Tickets on routes with a measured length (GTFS path, or end-to-end distance × 1.375 detour) | **99.9%** |
+| Tickets on routes with a measured length (GTFS path, or end-to-end distance × 1.362 detour) | **100%** (98.4% from the GTFS path) |
 | Weekday bus movement in grid cells with their own measured speed | 99.6% |
 | **Held-out check:** 16 Oct speeds predicted from 14–15 Oct, typical (median) error | **9.7%** |
 | Same check: share of bus movement predicted within 20% | 74.0% |
@@ -140,10 +140,10 @@ neighbouring towns. A trip with a change of bus needs one ticket per bus.
 
 | | |
 |---|---:|
-| E-tickets checked | 2,502,990 |
-| Fare table gives the exact price paid | **75.1%** |
-| Within ₹5 of the price paid | 96.4% |
-| Typical (mean) error | ₹1.30 |
+| E-tickets checked | 2,523,265 |
+| Fare table gives the exact price paid | **78.6%** |
+| Within ₹5 of the price paid | 97.7% |
+| Typical (mean) error | ₹1.08 |
 
 ## 8. Known limits
 
@@ -152,9 +152,8 @@ neighbouring towns. A trip with a change of bus needs one ticket per bus.
   data" and are left out of trip results whenever better routes exist.
 - **Saturday speeds** are the average of weekday and Sunday speeds; no Saturday GPS was
   processed (adding one more day file fixes this).
-- **The GTFS is the 2022–23 edition.** About 15% of tickets are on newer routes it doesn't
-  list (D-series, ML, 801 airport services). They are timed from the distance between their
-  two end stops.
+- **A few routes aren't in the GTFS.** About 1.6% of tickets are on routes the current feed doesn't list. They are
+  timed from the distance between their two end stops and drawn straight between stops.
 - **Times are in-bus times.** Waiting for the bus isn't included.
 - **GPS route IDs aren't linked to ticket routes**, so speeds are measured per area of the
   city, not per route.

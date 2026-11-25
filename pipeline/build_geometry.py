@@ -163,7 +163,7 @@ def main():
         volume_located=round(sum(M["stops"][k]["volume"] for k in stop_points)
                              / sum(s["volume"] for s in M["stops"].values()), 4),
         stops_exact_name=len(exact_pts), stops_ambiguous=len(ambiguous), detour_factor=round(f, 3),
-        gtfs_source="Delhi bus GTFS static (DIMTS/DTC), 2022-23 edition, via Transitland archive",
+        gtfs_source="Delhi bus GTFS static (DTC/DIMTS), feed v32, from Delhi Transport Stack (updated Nov 2026)",
     )
     OUT.mkdir(parents=True, exist_ok=True); WORK.mkdir(exist_ok=True)
     (WORK / "route_order.json").write_text(json.dumps(order), encoding="utf-8")
