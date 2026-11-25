@@ -109,11 +109,13 @@ def default_day() -> str:
 
 
 def is_now(minute: int, d: int) -> bool:
-    """True when the asked-for time is the present (within 10 minutes), so live buses apply."""
+    """True when the asked-for time is the present, so live buses apply."""
     now = datetime.now(IST)
     today = 2 if now.weekday() == 6 else 1 if now.weekday() == 5 else 0
-    delta = abs(((minute - (now.hour * 60 + now.minute)) + 720) % 1440 - 720)
-    return d == today and delta <= 10
+    m = now.hour * 60 + now.minute
+    delta = abs(((minute - m) + 720) % 1440 - 720)
+    # The app's clock steps on the half hour, so the current half hour counts as now too.
+    return d == today and (delta <= 10 or minute % 1440 == (m // 30) * 30)
 
 
 def live_buses_on(rid: str):

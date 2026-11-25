@@ -587,3 +587,34 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 .live-kv .live-dot, .live-line .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
 .bus-live { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 8px; background: var(--brand); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(28, 79, 156, .4), 0 2px 6px rgba(22, 25, 29, .25); display: grid; place-items: center; }
 .bus-live svg { width: 15px; height: 15px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Home tiles: each icon acts out what it stands for, once, when a mouse points at the tile.
+   Off for touch (no hover) and for reduced motion. */
+.tile-ic svg * { transform-box: view-box; }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tile-ic { transition: background-color 150ms ease; }
+  .tile:hover .tile-ic { background: #DCE6F5; }
+  /* Plan a trip and Crowd right now: the line draws from start to end */
+  .tile:hover [data-ic="plan"] path, .tile:hover [data-ic="pulse"] path { stroke-dasharray: 1; animation: ic-draw 600ms var(--ease-out) both; }
+  /* Best time: the hands sweep round the clock */
+  .tile:hover [data-ic="clock"] path { transform-origin: 12px 12px; animation: ic-spin 700ms cubic-bezier(0.77, 0, 0.175, 1); }
+  /* Recent trips: the whole clock winds back */
+  .tile:hover [data-ic="history"] svg { animation: ic-rewind 600ms cubic-bezier(0.77, 0, 0.175, 1); }
+  /* Find a route: the bus pulls in and settles */
+  .tile:hover [data-ic="bus"] svg { animation: ic-arrive 500ms var(--ease-out); }
+  /* Stop information: the pin drops onto the map */
+  .tile:hover [data-ic="pin"] svg { animation: ic-drop 500ms var(--ease-out); }
+  /* Seats free: the seat tips back, ready to sit in */
+  .tile:hover [data-ic="seat"] path { transform-origin: 9px 15px; animation: ic-tip 500ms var(--ease-out); }
+  /* How we know: the bars grow from the baseline, one after another */
+  .tile:hover [data-ic="chart"] path { transform-origin: center 20px; animation: ic-grow 450ms var(--ease-out) both; }
+  .tile:hover [data-ic="chart"] path:nth-child(2) { animation-delay: 60ms; }
+  .tile:hover [data-ic="chart"] path:nth-child(3) { animation-delay: 120ms; }
+}
+@keyframes ic-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes ic-spin { from { transform: rotate(-360deg); } }
+@keyframes ic-rewind { from { transform: rotate(360deg); } }
+@keyframes ic-arrive { 0% { transform: translateX(-5px); opacity: 0.4; } 70% { transform: translateX(1px); opacity: 1; } 100% { transform: none; } }
+@keyframes ic-drop { 0% { transform: translateY(-6px); } 60% { transform: translateY(1px); } 100% { transform: none; } }
+@keyframes ic-tip { 40% { transform: rotate(-10deg); } }
+@keyframes ic-grow { from { transform: scaleY(0.25); } }

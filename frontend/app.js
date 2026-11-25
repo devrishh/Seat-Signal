@@ -54,14 +54,14 @@ const store = {
 
 /* ---------- components ---------- */
 const IC = {
-  plan: `<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/></svg>`,
+  plan: `<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path pathLength="1" d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/></svg>`,
   clock: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
-  pulse: `<svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>`,
+  pulse: `<svg viewBox="0 0 24 24"><path pathLength="1" d="M3 12h4l3-7 4 14 3-7h4"/></svg>`,
   bus: `<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="2"/><path d="M5 11h14M8 21l1-4M16 21l-1-4"/></svg>`,
   pin: `<svg viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>`,
   seat: `<svg viewBox="0 0 24 24"><path d="M7 4v9a2 2 0 0 0 2 2h8M9 15l-1 5M16 15l1 5M7 9h3"/></svg>`,
   history: `<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>`,
-  chart: `<svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`,
+  chart: `<svg viewBox="0 0 24 24"><path d="M6 20v-6"/><path d="M12 20V4"/><path d="M18 20V10"/></svg>`,
   info: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg>`,
   alert: `<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.5"/></svg>`,
   walk: `<svg viewBox="0 0 24 24"><circle cx="13" cy="4" r="1.8"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 1 2 3M12 15l-1-5"/></svg>`,
@@ -527,7 +527,7 @@ async function pageHome() {
         <div class="card rows">${p.calmest.slice(0, 4).map((r) => routeRow(r)).join("")}</div></div>`;
   } catch (e) { $("#live-card").innerHTML = errorBox(e.message); }
 }
-const tile = (href, icon, title, sub) => `<a class="tile" href="${href}"><span class="tile-ic">${icon}</span><span><b>${title}</b><small>${sub}</small></span></a>`;
+const tile = (href, icon, title, sub) => `<a class="tile" href="${href}"><span class="tile-ic" data-ic="${Object.keys(IC).find((k) => IC[k] === icon) || ""}">${icon}</span><span><b>${title}</b><small>${sub}</small></span></a>`;
 
 /* ---------- plan ---------- */
 async function pagePlan(params) {
