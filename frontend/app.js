@@ -26,7 +26,7 @@ const fillOf = (c) => css(FILL[level(c)]);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const inr = (n) => Number(n).toLocaleString("en-IN");
 const rupees = (n) => `₹${Number(n) % 1 ? Number(n).toFixed(2) : Number(n)}`;
-const every = (l) => l.every ? `a bus every ${l.every} min` : l.wait_source === "timetable" ? "few buses at this time" : "timetable not known";
+const every = (l) => l.every ? `a bus every ${plural(l.every, "minute")}` : l.wait_source === "timetable" ? "few buses at this time" : "timetable not known";
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const q = () => `time=${hhmm(state.minute)}&day=${state.day}`;
 /* A trip can be planned for its own day and time (in its link: #/plan?...&time=09:00&day=weekday).
@@ -737,21 +737,21 @@ function renderPlan(p, from, to) {
     return;
   }
   const cards = p.options.map((o, i) => {
-    const tags = (o.live ? `<span class="pill live">Live: bus ${o.live.stops_away ? `due in ${o.live.eta} min` : "at the stop"}</span>` : "") + o.tags.map((t) => `<span class="pill brand">${t}</span>`).join("") + (o.confidence === "low" ? `<span class="pill warn">Limited data</span>` : "")
+    const tags = (o.live ? `<span class="pill live">Live: bus ${o.live.stops_away ? `due in ${plural(o.live.eta, "minute")}` : "at the stop"}</span>` : "") + o.tags.map((t) => `<span class="pill brand">${t}</span>`).join("") + (o.confidence === "low" ? `<span class="pill warn">Limited data</span>` : "")
       + (o.time_source === "estimate" ? `<span class="pill warn">Time estimated</span>` : "");
     const chain = o.legs.map((l) => plate(l.route, "sm")).join(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
-    const legs = o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}Change buses at ${esc(l.board)}. Walk about 3 minutes, then wait about ${l.wait} min (${every(l)}).</div>` : ""}
+    const legs = o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}Change buses at ${esc(l.board)}. Walk about 3 minutes, then wait about ${plural(l.wait, "minute")} (${every(l)}).</div>` : ""}
       <div class="leg"><div class="leg-head">${plate(l.route, "sm")}<span><b>${esc(l.board)} to ${esc(l.alight)}</b>
-      <small>${n ? "" : `Wait about ${l.wait} min (${every(l)}), then `}${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")}${l.fare != null ? ` · ${rupees(l.fare)}` : ""} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
+      <small>${n ? "" : `Wait about ${plural(l.wait, "minute")} (${every(l)}), then `}${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")}${l.fare != null ? ` · ${rupees(l.fare)}` : ""} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
       ${stopsList(l.stop_names, l.profile)}</div>`).join("") + stopsKey();
     return `<article class="card opt ${o.tags.includes("Best overall") ? "best" : ""} ${i === 0 ? "open" : ""}">
       ${tags ? `<div class="opt-tags">${tags}</div>` : ""}
-      <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}${o.wait != null ? `, including about ${o.wait} min waiting` : ""}</p></div><div class="opt-chain">${chain}</div></div>
+      <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}${o.wait != null ? `, including about ${plural(o.wait, "minute")} waiting` : ""}</p></div><div class="opt-chain">${chain}</div></div>
       ${seatMeter(o)}
       ${o.live !== undefined ? `<div class="kv live-kv"><span><i class="live-dot"></i>Live</span><b>${o.live
-        ? (o.live.stops_away ? `Next ${esc(routeName(o.legs[0].route.number))} is ${plural(o.live.stops_away, "stop")} away, due in about ${o.live.eta} min` : `A ${esc(routeName(o.legs[0].route.number))} is at the stop now`)
+        ? (o.live.stops_away ? `Next ${esc(routeName(o.legs[0].route.number))} is ${plural(o.live.stops_away, "stop")} away, due in about ${plural(o.live.eta, "minute")}` : `A ${esc(routeName(o.legs[0].route.number))} is at the stop now`)
         : "No bus seen coming yet"}</b></div>` : ""}
-      <div class="kv"><span>Wait at ${esc(o.legs[0].board)}</span><b class="tnum">about ${o.legs[0].wait} min</b></div>
+      <div class="kv"><span>Wait at ${esc(o.legs[0].board)}</span><b class="tnum">about ${plural(o.legs[0].wait, "minute")}</b></div>
       <div class="kv"><span>How often it comes</span><b>${every(o.legs[0]).replace(/^a bus/, "A bus").replace(/^few/, "Few").replace(/^timetable/, "Timetable")}</b></div>
       <div class="kv"><span>Arrives (expected)</span><b class="tnum">${clock(toMin(o.arrive))}</b></div>
       ${o.fare != null ? `<div class="kv"><span>Fare per person, e-ticket${o.legs.length > 1 ? `<br><small class="t-caption">one ticket per bus: ${o.legs.map((l) => rupees(l.fare)).join(" + ")}</small>` : ""}</span><b class="tnum">${rupees(o.fare)}</b></div>` : ""}
