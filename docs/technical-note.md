@@ -22,6 +22,8 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 
 **Fare.** For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. It matches the exact price paid on 78.6% of tickets, with a typical error of ₹1.08.
 
+**Live buses.** When planning for now, the app reads the Transport Stack GTFS-Realtime feed (about 6,100 buses), places each bus at its nearest stop and times the nearest one coming towards the rider's stop with the same GPS speeds. On 25 November, 94.6% of tickets were on routes with a live bus.
+
 ## Checks against known patterns
 
 | What we checked | Result |
@@ -36,15 +38,14 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 
 ## Assumptions
 
-- **Riders missing from the data.** The file has only ONDC e-tickets: no conductor tickets, passes or free travel. We assume those riders follow the same pattern by route and hour, so the index compares crowding rather than counting heads. With ETM counts the same pipeline could scale each route to real numbers.
+- **Riders missing from the data.** The file has only ONDC e-tickets: no conductor tickets, passes or free travel. We assume those riders follow the same pattern by route and hour, so the index compares crowding rather than counting heads.
 - **Where people get off.** We take the end stop on the ticket as where the rider leaves. People who get off a stop early or late move crowding by a stretch or two, not the shape of the day.
 - **Bus size.** There's no bus type in the data, so all buses count as the same size. The same load on a 9 m bus is more crowded than the index shows.
-- **A usual day.** The app shows the October average for that kind of day and half hour. It doesn't know about today's breakdowns or traffic, and waits assume buses keep to the timetable, which real buses often don't.
+- **A usual day.** The app shows the October average for that kind of day and half hour. Waits assume buses keep to the timetable, which real buses often don't.
 
 ## Where it's least reliable
 
 - Routes with fewer than 600 e-tickets in October. They're labelled "Limited data" and only appear in trip results when nothing better exists.
 - Ring routes like the Mudrikas, where the stop order is hard to pin down.
-- About 1.6% of tickets are on routes the current GTFS doesn't list. Their order comes from tickets, their time from the distance between end stops, and their map lines go straight between stops.
-- Saturday speeds, which are the average of weekday and Sunday (no Saturday GPS).
-- Late at night, and anything seasonal: one month can't show festivals, school holidays or the monsoon.
+- About 1.6% of tickets are on routes the current GTFS doesn't list. They're ordered from tickets and timed from their end stops.
+- Saturday speeds (the average of weekday and Sunday), late nights, and anything seasonal like festivals or the monsoon.

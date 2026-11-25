@@ -577,3 +577,13 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
   @media (min-width: 900px) { .dialog, .dialog.show { transform: translateY(-50%); } }
   .btn:active, .tile:active, .chip:active, .when:active, .segmented button:active { transform: none; }
 }
+
+/* ---------- live buses (GTFS-Realtime feed) ---------- */
+.pill.live { color: var(--ok); background: var(--ok-soft); }
+.pill.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.live-kv span, .live-line { display: inline-flex; align-items: center; gap: 8px; }
+.live-kv span { color: var(--ok) !important; font-weight: 600; }
+.live-line { color: var(--ok); font-weight: 600; margin-top: 4px; }
+.live-kv .live-dot, .live-line .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+.bus-live { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 8px; background: var(--brand); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(28, 79, 156, .4), 0 2px 6px rgba(22, 25, 29, .25); display: grid; place-items: center; }
+.bus-live svg { width: 15px; height: 15px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }

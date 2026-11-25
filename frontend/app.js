@@ -737,7 +737,7 @@ function renderPlan(p, from, to) {
     return;
   }
   const cards = p.options.map((o, i) => {
-    const tags = o.tags.map((t) => `<span class="pill brand">${t}</span>`).join("") + (o.confidence === "low" ? `<span class="pill warn">Limited data</span>` : "")
+    const tags = (o.live ? `<span class="pill live">Live: bus ${o.live.stops_away ? `due in ${o.live.eta} min` : "at the stop"}</span>` : "") + o.tags.map((t) => `<span class="pill brand">${t}</span>`).join("") + (o.confidence === "low" ? `<span class="pill warn">Limited data</span>` : "")
       + (o.time_source === "estimate" ? `<span class="pill warn">Time estimated</span>` : "");
     const chain = o.legs.map((l) => plate(l.route, "sm")).join(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
     const legs = o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}Change buses at ${esc(l.board)}. Walk about 3 minutes, then wait about ${l.wait} min (${every(l)}).</div>` : ""}
@@ -748,6 +748,9 @@ function renderPlan(p, from, to) {
       ${tags ? `<div class="opt-tags">${tags}</div>` : ""}
       <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}${o.wait != null ? `, including about ${o.wait} min waiting` : ""}</p></div><div class="opt-chain">${chain}</div></div>
       ${seatMeter(o)}
+      ${o.live !== undefined ? `<div class="kv live-kv"><span><i class="live-dot"></i>Live</span><b>${o.live
+        ? (o.live.stops_away ? `Next ${esc(routeName(o.legs[0].route.number))} is ${plural(o.live.stops_away, "stop")} away, due in about ${o.live.eta} min` : `A ${esc(routeName(o.legs[0].route.number))} is at the stop now`)
+        : "No bus seen coming yet"}</b></div>` : ""}
       <div class="kv"><span>Wait at ${esc(o.legs[0].board)}</span><b class="tnum">about ${o.legs[0].wait} min</b></div>
       <div class="kv"><span>How often it comes</span><b>${every(o.legs[0]).replace(/^a bus/, "A bus").replace(/^few/, "Few").replace(/^timetable/, "Timetable")}</b></div>
       <div class="kv"><span>Arrives (expected)</span><b class="tnum">${clock(toMin(o.arrive))}</b></div>
@@ -910,6 +913,7 @@ async function pageRoute(id) {
           <div class="axis t-caption"><span>5 am</span><span>9 am</span><span>1 pm</span><span>5 pm</span><span>9 pm</span></div></div>
         ${r.route.low_data ? notice("warn", "Limited data", "This route had fewer than 600 e-tickets in October, so its crowding is less certain.", IC.alert) : ""}
       </div><div class="card chart-card"><div class="map-head"><h2 class="t-heading">Along the route at <span id="route-at">${clock(toMin(r.slot))}</span></h2><button type="button" class="link t-small-strong" id="route-at-now" hidden>Back to ${state.live ? "now" : clock(state.minute)}</button></div>
+        ${r.live ? `<p class="t-small live-line"><i class="live-dot"></i>${r.live.length ? `${r.live.length} ${r.live.length === 1 ? "bus" : "buses"} on this route right now, shown on the map` : "No buses on this route in the live feed right now"}</p>` : ""}
         <p class="t-small muted">The line is coloured by how full the bus usually is on each stretch. Hover or tap a stretch or a stop for details, or tap a half hour in "Through the day" to see the route at that time.</p>
         <div class="map" id="route-map" role="region" aria-label="Map of route ${esc(r.route.number)}"></div>
         <p class="map-read t-small" id="route-map-read" aria-live="polite">${READ_HINT}</p>
@@ -922,6 +926,10 @@ async function pageRoute(id) {
       const ride = drawRide(lay, r.shape, r.segments, r.stops.map((x) => x.name), { keys: r.stops.map((x) => x.key), map: m, readout: $("#route-map-read") });
       fitTo(m, lay);
       fitControl(m, "Show whole route", () => fitTo(m, lay));
+      if (r.live?.length) {                // buses on this route right now, from the live feed
+        r.live.forEach((b) => L.marker([b.lat, b.lon], { icon: L.divIcon({ className: "bus-live", iconSize: null, html: IC.bus }), keyboard: false, zIndexOffset: 900 })
+          .bindTooltip(`Bus ${esc(b.plate)}, at ${esc(r.stops[b.at].name)}<br><span class="muted">seen ${b.age < 60 ? `${b.age} s` : `${Math.round(b.age / 60)} min`} ago</span>`, { direction: "top", offset: [0, -12] }).addTo(m));
+      }
       // the list and the map point at each other
       $$("#route-stops .st").forEach((el, k) => { el.onmouseenter = el.onfocus = () => ride.highlight(k, true); el.onmouseleave = el.onblur = () => ride.highlight(k, false); });
       // tapping a half hour in "Through the day" shows the route at that time (the app's time stays)

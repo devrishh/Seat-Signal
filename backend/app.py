@@ -23,6 +23,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from .live import Live
 from .travel import Travel
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,8 @@ FARES = json.loads(_fp.read_text()) if _fp.exists() else {}
 _sp = ROOT / "data" / "schedule.json"
 SCHED = {k: (np.array(v["dep"], float), np.array(v["off"], float))
          for k, v in (json.loads(_sp.read_text()) if _sp.exists() else {}).items()}
+_lp = ROOT / "data" / "live_routes.json"
+LIVE = Live(ROOT, json.loads(_lp.read_text()) if _lp.exists() else {})
 WALK_MIN = 3              # walking between buses at a change
 DEFAULT_WAIT = 8          # routes with no timetable: a typical wait
 
@@ -103,6 +106,41 @@ def parse_time(t: str | None) -> int:
 def default_day() -> str:
     d = datetime.now(IST).weekday()
     return "sunday" if d == 6 else "saturday" if d == 5 else "weekday"
+
+
+def is_now(minute: int, d: int) -> bool:
+    """True when the asked-for time is the present (within 10 minutes), so live buses apply."""
+    now = datetime.now(IST)
+    today = 2 if now.weekday() == 6 else 1 if now.weekday() == 5 else 0
+    delta = abs(((minute - (now.hour * 60 + now.minute)) + 720) % 1440 - 720)
+    return d == today and delta <= 10
+
+
+def live_buses_on(rid: str):
+    """Buses on route rid now, each with the index of the route stop it is at or nearest to."""
+    out = []
+    for b in LIVE.buses().get(rid, []):
+        best, k_best = 0.6, None                     # within 600 m of one of the route's stops
+        for k in range(len(ROUTES[rid]["stops"])):
+            p = TRAVEL.point(rid, k)
+            if p is None:
+                continue
+            dkm = (((p[0] - b["lat"]) * 111.0) ** 2 + ((p[1] - b["lon"]) * 97.6) ** 2) ** 0.5
+            if dkm < best:
+                best, k_best = dkm, k
+        if k_best is not None:
+            out.append(dict(lat=round(b["lat"], 5), lon=round(b["lon"], 5), plate=b["plate"], age=b["age"], at=k_best))
+    return out
+
+
+def live_next(rid: str, i: int, minute: int, d: int):
+    """The nearest bus coming towards stop i of route rid, and about when it gets there."""
+    near = [b for b in live_buses_on(rid) if b["at"] <= i]
+    if not near:
+        return None
+    b = max(near, key=lambda x: x["at"])
+    eta = 0 if b["at"] == i else ride(rid, b["at"], i, minute, d)["minutes"]
+    return dict(eta=round(eta), stops_away=i - b["at"], plate=b["plate"], age=b["age"])
 
 
 def m2s(hhmm: str) -> int:
@@ -257,7 +295,7 @@ def _carto_key() -> str:
     if not key and f.exists():
         lines = f.read_text(encoding="utf-8").split()
         key = lines[0] if lines else ""
-    return key
+    return "" if key.startswith("<") else key        # "<insert your carto key>" is a placeholder
 
 
 @app.get("/.well-known/appspecific/com.chrome.devtools.json", include_in_schema=False)
@@ -271,7 +309,7 @@ def chrome_devtools_probe():
 def config():
     """Settings the browser needs. The basemap key travels in tile URLs, so it is public by design;
     restrict it to your site's address in the CARTO dashboard."""
-    return dict(carto_key=_carto_key())
+    return dict(carto_key=_carto_key(), live=LIVE.on)
 
 
 @app.get("/api/meta")
@@ -380,9 +418,13 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
         tip = dict(depart=better["depart"], crowd=better["crowd"], drop_pct=drop,
                    offset=better["offset"],
                    text=f"Leave {abs(better['offset'])} minutes {when}, at {ampm(m2s(better['depart']))}, and the bus is about {drop}% less crowded.")
+    live_now = LIVE.on and is_now(minute, d)
     for o in opts:
         for leg, (rid, i, j) in zip(o["legs"], o["_key"]):
             leg["shape"] = TRAVEL.shape(rid, i, j)        # for the map
+        if live_now:
+            rid, i, _ = o["_key"][0]
+            o["live"] = live_next(rid, i, minute, d)    # None: no bus seen coming yet
         o.pop("_key", None)
         o.pop("score", None)
     return dict(origin=STOPS[a]["name"], destination=STOPS[b]["name"], depart=fmt(minute), day=day,
@@ -415,7 +457,8 @@ def route(rid: str, time: str | None = None, day: str | None = None):
                 best_time=fmt(best_s * 30), worst_time=fmt(worst_s * 30),
                 best_crowd=round(float(prof[best_s])), worst_crowd=round(float(prof[worst_s])),
                 now_crowd=round(float(prof[slot])), level=level(float(prof[slot])),
-                shape=TRAVEL.shape(rid, 0, len(r["stops"]) - 1))
+                shape=TRAVEL.shape(rid, 0, len(r["stops"]) - 1),
+                live=live_buses_on(rid) if LIVE.on and is_now(minute, d) else None)
 
 
 @lru_cache(maxsize=256)

@@ -1,6 +1,7 @@
 """How often buses run, from the Delhi bus GTFS timetable, so trip times can include waiting.
 
 For every ticket route matched to a GTFS route (same name, as in build_geometry.py) it writes
+data/live_routes.json: GTFS route_id -> our route id, for the live bus feed, and
 data/schedule.json:  {route id: {"dep": [departure minutes from the first stop, sorted],
                                  "off": [scheduled minutes from the first stop to each of our stops]}}
 The app turns these into "a bus every N minutes" and the average wait at the stop you board.
@@ -58,6 +59,10 @@ def main():
         off = np.maximum.accumulate(np.interp(x, x[ok], off[ok]))      # unplaced stops: in between
         out[rid] = dict(dep=[int(v) for v in dep], off=[int(round(v)) for v in off])
         covered += r["tickets"]
+    # the live GTFS-RT feed names routes by GTFS route_id: map those ids to our route ids
+    live = {str(gid): rid for gid, name in zip(routes.route_id, routes.route_long_name)
+            for rid in [next((r for r in M["routes"] if key(r) == key(name)), None)] if rid}
+    (ROOT / "data" / "live_routes.json").write_text(json.dumps(live, separators=(",", ":")))
     total = sum(r["tickets"] for r in M["routes"].values())
     (ROOT / "data" / "schedule.json").write_text(json.dumps(out, separators=(",", ":")))
     print(json.dumps(dict(routes=len(out), tickets_on_scheduled_routes=round(covered / total, 4),

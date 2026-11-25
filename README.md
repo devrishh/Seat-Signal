@@ -25,6 +25,8 @@ Open http://localhost:8000. To try it on a phone on the same Wi-Fi, open `http:/
 
 On some Windows machines `pip.exe` is blocked, which is why the commands use `python -m pip`.
 
+Live bus positions need a Delhi Transport Stack API key for the GTFS-RT feed: put it in `ts_key.txt` (one line, kept out of git) or a `TS_API_KEY` environment variable. Without one, everything else works and the live parts stay hidden.
+
 The map background comes from CARTO and needs an internet connection; everything else works offline. If you have a CARTO key, put it in `carto_key.txt` (one line) or in a `CARTO_KEY` environment variable. Without a key the maps still load.
 
 ### Hosting
@@ -33,6 +35,7 @@ The repo runs on Vercel as it is: `index.py` points Vercel to the app, and `.ver
 
 ## What's in the app
 
+- **Live buses.** When you plan for now, each trip shows where the next bus is ("4 stops away, due in about 6 min"), and route pages show the buses on the route, from the Delhi Transport Stack GTFS-Realtime feed.
 - **Plan a trip.** Pick two stops and a time. Each bus option shows the trip time including the usual wait, how often the bus comes, how crowded it usually is, your chance of a seat, the fare, and a map with each stretch coloured by crowding. Sort by fastest, calmest or cheapest. If leaving a little earlier or later is much calmer, it tells you.
 - **Best time to travel.** Your trip checked every half hour from 5:30 am to 11 pm.
 - **Crowd right now.** The citywide crowding level, the busiest routes, the big routes with room, and the ones filling up fastest.
