@@ -37,6 +37,9 @@
   /* spacing */
   --xs: 4px; --sm: 8px; --md: 12px; --lg: 16px; --xl: 24px; --xxl: 32px;
   /* radius by role: controls are tighter than the cards that hold them */
+  /* surfaces that change with the theme */
+  --on-brand: #FFFFFF; --brand-hover: #1A4890; --seg-bg: #E6EAED; --row-hover: #F7F8F9; --map-bg: #ECEFF1;
+  --ic-hover: #DCE6F5; --link-rule: rgba(28, 79, 156, 0.35); --attr-bg: rgba(255, 255, 255, 0.85);
   --r-control: 10px; --r-card: 14px; --r-bar: 7px; --r-mark: 4px;
   /* motion */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -257,7 +260,7 @@ main { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto;
 .pill.warn { color: var(--warn); background: var(--warn-soft); }
 
 /* ---------- segmented ---------- */
-.segmented { display: flex; gap: var(--xs); padding: var(--xs); border-radius: var(--r-control); background: #E6EAED; }
+.segmented { display: flex; gap: var(--xs); padding: var(--xs); border-radius: var(--r-control); background: var(--seg-bg); }
 .segmented button { flex: 1; min-width: 0; min-height: 40px; padding: 0 var(--sm); border-radius: 7px; font-size: 14px; line-height: 18px; font-weight: 600; color: var(--muted); text-align: center;
   transition: transform var(--press) var(--ease-out), background-color 150ms ease, color 150ms ease; }
 .segmented button:active { transform: scale(0.96); }
@@ -295,7 +298,7 @@ main { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto;
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sm); width: 100%; min-height: 52px; padding: 0 var(--lg); border-radius: var(--r-control); font-size: 16px; font-weight: 600; text-align: center;
   transition: transform var(--press) var(--ease-out), background-color 150ms ease, border-color 150ms ease; }
 .btn:active { transform: scale(0.97); }
-.btn.primary { background: var(--brand); color: #fff; }
+.btn.primary { background: var(--brand); color: var(--on-brand); }
 .btn.primary:active { background: var(--brand-pressed); }
 .btn.secondary { background: var(--surface); color: var(--brand); border: 1px solid var(--line-strong); }
 .btn.quiet { min-height: 44px; color: var(--brand); width: auto; padding: 0; }
@@ -443,7 +446,7 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 .section-title { display: flex; justify-content: space-between; align-items: baseline; gap: var(--md); flex-wrap: wrap; margin-top: var(--xl) !important; }
 .section-title + .card, .section-title + .tiles { margin-top: var(--md) !important; }
 .label { margin-top: var(--lg) !important; margin-bottom: calc(-1 * var(--sm)); }
-.link { color: var(--brand); min-height: 44px; display: inline-flex; align-items: center; text-decoration: underline; text-decoration-color: rgba(28, 79, 156, 0.35); text-underline-offset: 3px; transition: text-decoration-color 150ms ease; }
+.link { color: var(--brand); min-height: 44px; display: inline-flex; align-items: center; text-decoration: underline; text-decoration-color: var(--link-rule); text-underline-offset: 3px; transition: text-decoration-color 150ms ease; }
 .link:active { text-decoration-color: currentColor; }
 .plates-note { display: flex; align-items: center; gap: var(--sm); flex-wrap: wrap; }
 .plates-note .plate + * { margin-right: var(--md); }
@@ -472,7 +475,7 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 .chart-card .ichart { margin-top: var(--lg); }
 
 /* ---------- maps (Leaflet) ---------- */
-.map { height: 340px; border: 1px solid var(--line); border-radius: var(--r-control); overflow: hidden; background: #ECEFF1; z-index: 0; margin-top: var(--md); }
+.map { height: 340px; border: 1px solid var(--line); border-radius: var(--r-control); overflow: hidden; background: var(--map-bg); z-index: 0; margin-top: var(--md); }
 .map-sm { height: 240px; }
 .map-card { padding: var(--md) var(--lg) var(--lg); }
 .map-card .map { margin-top: var(--sm); }
@@ -495,7 +498,7 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 .leaflet-popup-content { margin: 12px 14px; }
 .leaflet-tooltip { border: 1px solid var(--line); box-shadow: none; border-radius: 8px; font-size: 13px; color: var(--ink); padding: 4px 8px; }
 .leaflet-tooltip.map-label { font-weight: 600; max-width: 220px; white-space: normal; text-align: center; }
-.leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.85) !important; }
+.leaflet-control-attribution { font-size: 10px; background: var(--attr-bg) !important; }
 .map-pop { display: grid; gap: 4px; min-width: 190px; }
 .map-pop b { font-size: 14px; line-height: 19px; overflow-wrap: anywhere; }
 .map-pop small { color: var(--muted); font-size: 12px; }
@@ -551,8 +554,8 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
   .when:hover { border-color: var(--brand); }
   .tile:hover { border-color: var(--brand); }
   .back:hover { background: var(--brand-soft); }
-  a.row:hover, button.row:hover { background: #F7F8F9; }
-  .btn.primary:hover { background: #1A4890; }
+  a.row:hover, button.row:hover { background: var(--row-hover); }
+  .btn.primary:hover { background: var(--brand-hover); }
   .btn.secondary:hover { border-color: var(--brand); }
   .chip:hover { border-color: var(--brand); }
   .opt:hover { border-color: var(--line-strong); }
@@ -593,7 +596,7 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 .tile-ic svg * { transform-box: view-box; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .tile-ic { transition: background-color 150ms ease; }
-  .tile:hover .tile-ic { background: #DCE6F5; }
+  .tile:hover .tile-ic { background: var(--ic-hover); }
   /* Plan a trip and Crowd right now: the line draws from start to end */
   .tile:hover [data-ic="plan"] path, .tile:hover [data-ic="pulse"] path { stroke-dasharray: 1; animation: ic-draw 600ms var(--ease-out) both; }
   /* Best time: the hands sweep round the clock */
@@ -618,3 +621,121 @@ input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 
 @keyframes ic-drop { 0% { transform: translateY(-6px); } 60% { transform: translateY(1px); } 100% { transform: none; } }
 @keyframes ic-tip { 40% { transform: rotate(-10deg); } }
 @keyframes ic-grow { from { transform: scaleY(0.25); } }
+
+/* ---------- first-visit tour ---------- */
+.tour { position: fixed; inset: 0; z-index: 80; pointer-events: auto; opacity: 0; transition: opacity 200ms ease; }
+.tour.show { opacity: 1; }
+.tour.out { opacity: 0; transition-duration: 160ms; }
+/* the spotlight: a clear box whose huge shadow dims everything else; it glides from part to part */
+.tour-hole { position: fixed; left: 0; top: 0; width: 0; height: 0; border-radius: var(--r-card);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand), 0 0 0 200vmax rgba(22, 25, 29, 0.58);
+  transition: transform 380ms var(--ease-in-out, cubic-bezier(0.77, 0, 0.175, 1)), width 380ms cubic-bezier(0.77, 0, 0.175, 1), height 380ms cubic-bezier(0.77, 0, 0.175, 1), opacity 200ms ease; }
+.tour.welcome .tour-hole { opacity: 0; transform: translate(50vw, 50vh); width: 0; height: 0; box-shadow: 0 0 0 200vmax rgba(22, 25, 29, 0.58); }
+.tour.welcome::before { content: ""; position: fixed; inset: 0; background: rgba(22, 25, 29, 0.58); }
+.tour-card { position: fixed; left: 16px; right: 16px; bottom: 0; background: var(--surface); color: var(--ink);
+  border-radius: var(--r-card) var(--r-card) 0 0; padding: var(--xl) var(--lg) calc(var(--lg) + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(22, 25, 29, 0.18); outline: none; transition: left 380ms cubic-bezier(0.77, 0, 0.175, 1), top 380ms cubic-bezier(0.77, 0, 0.175, 1); }
+.tour-card.in .tour-body { animation: tour-in 260ms var(--ease-out) both; }
+.tour-body > * + * { margin-top: var(--sm); }
+.tour-count { margin: 0; }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--md); margin-top: var(--xl); }
+.tour-btns { display: flex; gap: var(--sm); }
+.tour-btns .btn { min-height: 44px; padding: 0 var(--lg); width: auto; white-space: nowrap; }
+.tour-btns .tour-skip { padding: 0 var(--sm); }
+.tour-btns .btn[hidden] { display: none; }
+.tour-skip { color: var(--muted); }
+.tour-dots { display: flex; gap: 6px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line-strong); transition: width 240ms var(--ease-out), background-color 240ms ease; }
+.tour-dots i.on { width: 18px; background: var(--brand); }
+.tour.welcome .tour-dots { visibility: hidden; }
+/* the welcome card's one moment: the crowd scale fills in, calm to packed */
+.tour-meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: var(--lg); }
+.tour-meter span { display: flex; flex-direction: column; gap: 6px; }
+.tour-meter i { display: block; height: 10px; border-radius: 5px; transform-origin: left center; animation: tour-fill 420ms var(--ease-out) both; animation-delay: calc(120ms + var(--k) * 110ms); }
+.tour-meter i.f1 { background: var(--c1-fill); } .tour-meter i.f2 { background: var(--c2-fill); }
+.tour-meter i.f3 { background: var(--c3-fill); } .tour-meter i.f4 { background: var(--c4-fill); }
+.tour-meter small { font-size: 12px; line-height: 16px; color: var(--muted); animation: tour-in 300ms var(--ease-out) both; animation-delay: calc(220ms + var(--k) * 110ms); }
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes tour-fill { from { transform: scaleX(0.04); opacity: 0.4; } }
+@media (min-width: 600px) {
+  .tour-card { right: auto; bottom: auto; width: min(380px, calc(100vw - 32px)); border-radius: var(--r-card); padding: var(--xl); box-shadow: 0 12px 40px rgba(22, 25, 29, 0.24); }
+  .tour.welcome .tour-card { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole, .tour-card, .tour-dots i { transition: none; }
+  .tour-card.in .tour-body, .tour-meter i, .tour-meter small { animation: none; }
+}
+
+/* ---------- night mode ----------
+   Delhi after dark from inside the bus: a blue-black road, cool panels, and the destination boards
+   (the one thing already lit) glowing a little brighter. Crowd colours are lifted so they read on dark. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0C1016; --surface: #141A22; --ink: #E7EBF0; --muted: #9AA5B1; --faint: #6D7782;
+  --line: #242C36; --line-strong: #33404D;
+  --brand: #7DB0FF; --brand-pressed: #A9CAFF; --brand-soft: #16243A; --on-brand: #081629; --brand-hover: #98C0FF;
+  --board: #05070A; --silver-edge: #6D7782;
+  --ok: #62D49C; --ok-soft: #0E281C; --warn: #EEC463; --warn-soft: #2A220F; --danger: #FF9188; --danger-soft: #351614;
+  --c1: #62D49C; --c1-soft: #0E281C; --c1-fill: #3DBB7A;
+  --c2: #EEC463; --c2-soft: #2A220F; --c2-fill: #E3B43D;
+  --c3: #F6A566; --c3-soft: #321F0E; --c3-fill: #EF8A3A;
+  --c4: #FF9188; --c4-soft: #351614; --c4-fill: #F05D52;
+  --seg-bg: #0C1016; --row-hover: #1A212B; --map-bg: #0F141A; --ic-hover: #1D3150;
+  --link-rule: rgba(125, 176, 255, 0.4); --attr-bg: rgba(20, 26, 34, 0.85);
+}
+/* the boards glow at night, the way they do on the road */
+[data-theme="dark"] .plate { text-shadow: 0 0 10px rgba(255, 178, 36, 0.6); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 -3px 0 #1C2128, 0 0 18px -6px rgba(255, 178, 36, 0.35); }
+[data-theme="dark"] .plate.gold { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 -3px 0 var(--ac-rule), 0 0 18px -6px rgba(255, 178, 36, 0.35); }
+[data-theme="dark"] .plate.xs { box-shadow: inset 0 -2px 0 #1C2128; }
+[data-theme="dark"] .plate.lg > span { filter: drop-shadow(0 0 9px rgba(255, 178, 36, 0.7)); }
+[data-theme="dark"] .live-dot, [data-theme="dark"] .pill.live::before { box-shadow: 0 0 0 3px var(--ok-soft), 0 0 8px var(--ok); }
+[data-theme="dark"] .hallmark.gold { color: #9FD2F7; background: #0F2638; box-shadow: inset 0 0 0 1px #1C4566; }
+[data-theme="dark"] .hallmark.silver { color: #B5BEC7; background: #1C232C; }
+[data-theme="dark"] .spinner { border-color: rgba(8, 22, 41, 0.3); border-top-color: var(--on-brand); }
+[data-theme="dark"] .bus-live { border-color: var(--on-brand); box-shadow: 0 0 0 1px rgba(125, 176, 255, 0.5), 0 0 12px rgba(125, 176, 255, 0.45); }
+[data-theme="dark"] .bus-live svg { stroke: var(--on-brand); }
+[data-theme="dark"] .ic-tip { box-shadow: 0 0 0 1px var(--line-strong); }
+[data-theme="dark"] .leaflet-container { background: var(--map-bg); }
+[data-theme="dark"] .leaflet-popup-content-wrapper, [data-theme="dark"] .leaflet-popup-tip { background: var(--surface); color: var(--ink); }
+[data-theme="dark"] .leaflet-tooltip { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+[data-theme="dark"] .leaflet-tooltip-top::before { border-top-color: var(--line-strong); }
+[data-theme="dark"] .leaflet-tooltip-bottom::before { border-bottom-color: var(--line-strong); }
+[data-theme="dark"] .leaflet-tooltip-left::before { border-left-color: var(--line-strong); }
+[data-theme="dark"] .leaflet-tooltip-right::before { border-right-color: var(--line-strong); }
+[data-theme="dark"] .leaflet-bar a, [data-theme="dark"] .leaflet-bar a:hover { background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
+[data-theme="dark"] .leaflet-bar { border-color: var(--line) !important; }
+[data-theme="dark"] .leaflet-control-attribution a { color: var(--muted); }
+[data-theme="dark"] .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+[data-theme="dark"] .sdot-me { background: var(--brand); }
+[data-theme="dark"] .tour-card { box-shadow: 0 0 0 1px var(--line-strong), 0 12px 40px rgba(0, 0, 0, 0.5); }
+
+/* the switch: a sun whose rays fold away as the moon's shadow slides across it */
+/* the guide and day/night buttons sit together just before the time chip */
+.top-tools { display: flex; gap: var(--sm); margin-left: auto; flex-shrink: 0; }
+.top-tools + .when { margin-left: calc(var(--sm) - var(--xl)); }      /* close to the time chip, not a full gap away */
+.icon-btn { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-control); border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer; flex-shrink: 0; transition: transform var(--press) var(--ease-out), border-color 150ms ease; }
+.icon-btn:active { transform: scale(0.94); }
+.icon-btn svg { width: 22px; height: 22px; overflow: visible; }
+.guide-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.guide-btn .dot { fill: currentColor; }
+@media (max-width: 440px) {
+  .topbar-in { gap: var(--lg); }
+  .top-tools { gap: var(--xs); }
+  .top-tools + .when { margin-left: calc(var(--sm) - var(--lg)); padding: 0 10px; }
+  .icon-btn { width: 38px; height: 38px; }
+  .brand { font-size: 18px; gap: 8px; }
+  .when.live .when-day { display: none; }          /* live is always today; the time is what matters on a small screen */
+}
+.theme-btn .core { fill: currentColor; transform-origin: 12px 12px; transform: scale(0.62); transition: transform 500ms cubic-bezier(0.77, 0, 0.175, 1); }
+.theme-btn .cut { transform: translate(8px, -8px); transition: transform 500ms cubic-bezier(0.77, 0, 0.175, 1); }
+.theme-btn .rays { stroke: currentColor; stroke-width: 2; stroke-linecap: round; fill: none; transform-origin: 12px 12px; transition: transform 500ms cubic-bezier(0.77, 0, 0.175, 1), opacity 300ms ease; }
+[data-theme="dark"] .theme-btn { color: var(--led); }
+[data-theme="dark"] .theme-btn .core { transform: scale(1); }
+[data-theme="dark"] .theme-btn .cut { transform: translate(0, 0); }
+[data-theme="dark"] .theme-btn .rays { transform: rotate(-90deg) scale(0.4); opacity: 0; }
+@media (hover: hover) and (pointer: fine) { .icon-btn:hover { border-color: var(--brand); } }
+
+/* switching: night spreads out from the switch as a growing circle (where the browser supports it) */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@media (prefers-reduced-motion: reduce) { .theme-btn .core, .theme-btn .cut, .theme-btn .rays { transition: none; } }

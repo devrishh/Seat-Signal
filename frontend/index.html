@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#FFFFFF" />
-  <meta name="color-scheme" content="light" />
+  <script>try{var t=JSON.parse(localStorage.getItem("ss-theme"));document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
+  <meta name="color-scheme" content="light dark" />
   <meta name="description" content="Seat Signal: a Delhi bus journey planner that shows how crowded each bus is likely to be, from October 2026 e-ticket data." />
   <title>Seat Signal · Know the crowd before you board</title>
   <link rel="preload" href="/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin />
@@ -30,6 +31,16 @@
           <a href="#/stops" data-nav="stops">Stops</a>
           <a href="#/about" data-nav="about">How we know</a>
         </nav>
+        <div class="top-tools">
+        <button class="icon-btn guide-btn" id="guide-btn" type="button" aria-label="Show me around" title="Show me around" data-tour>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><circle class="dot" cx="12" cy="17" r="0.6"/></svg>
+        </button>
+        <button class="icon-btn theme-btn" id="theme-btn" type="button" aria-label="Switch to night mode" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><defs><mask id="moon-cut"><rect x="-4" y="-4" width="32" height="32" fill="#fff"/><circle class="cut" cx="17" cy="7" r="6.5" fill="#000"/></mask></defs>
+            <circle class="core" cx="12" cy="12" r="8" mask="url(#moon-cut)"/>
+            <g class="rays"><path d="M12 1.8v2.4M12 19.8v2.4M4.8 4.8l1.7 1.7M17.5 17.5l1.7 1.7M1.8 12h2.4M19.8 12h2.4M4.8 19.2l1.7-1.7M17.5 6.5l1.7-1.7"/></g></svg>
+        </button>
+        </div>
         <button class="when" id="when" aria-label="Change day and time">
           <span class="live-dot" id="when-dot"></span>
           <span><span class="when-tag" id="when-tag">Live</span> · <span id="when-label">—</span></span>

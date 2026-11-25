@@ -22,7 +22,8 @@ const short = (m) => clock(m).replace(":00", "");
 const hhmm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const toMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
 const level = (c) => (c < 35 ? "Comfortable" : c < 60 ? "Moderate" : c < 80 ? "Busy" : "Packed");
-const fillOf = (c) => css(FILL[level(c)]);
+const fillOf = (c) => `var(${FILL[level(c)]})`;          // for HTML and CSS: follows the theme by itself
+const fillHex = (c) => css(FILL[level(c)]);             // for map lines, which need a real colour
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const inr = (n) => Number(n).toLocaleString("en-IN");
 const rupees = (n) => `₹${Number(n) % 1 ? Number(n).toFixed(2) : Number(n)}`;
@@ -107,12 +108,12 @@ function lineChart(svg, series, { max, marker } = {}) {
     const n = s.values.length;
     const pts = s.values.map((v, i) => [(i / (n - 1)) * w, h - pad - (v / max) * (h - pad * 2)]);
     const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-    if (s.fill) out += `<path d="${d} L${w},${h} L0,${h} Z" fill="${s.color}" fill-opacity="${s.fill}"/>`;
-    out += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.width || 2}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    if (s.fill) out += `<path d="${d} L${w},${h} L0,${h} Z" style="fill:${s.color}" fill-opacity="${s.fill}"/>`;
+    out += `<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="${s.width || 2}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
     if (s.marker && marker != null && marker >= 0 && marker < n) {
       const [mx, my] = pts[marker];
-      out += `<line x1="${mx}" x2="${mx}" y1="0" y2="${h}" stroke="${css("--line")}" vector-effect="non-scaling-stroke"/>`;
-      out += `<circle cx="${mx}" cy="${my}" r="5" fill="${css("--surface")}" stroke="${s.color}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
+      out += `<line x1="${mx}" x2="${mx}" y1="0" y2="${h}" style="stroke:var(--line)" vector-effect="non-scaling-stroke"/>`;
+      out += `<circle cx="${mx}" cy="${my}" r="5" style="fill:var(--surface);stroke:${s.color}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
     }
   });
   svg.innerHTML = out;
@@ -293,7 +294,8 @@ function updateWhen() {
   $("#when-tag").classList.toggle("off", !state.live);
   $("#when-tag").textContent = state.live ? "Live" : "Planned";
   const dayWord = state.live ? n.weekday : state.day === "sunday" ? "Sun" : state.day === "saturday" ? "Sat" : "Weekday";
-  $("#when-label").textContent = `${dayWord} ${clock(state.minute)}`;
+  $("#when-label").innerHTML = `<span class="when-day">${dayWord} </span>${clock(state.minute)}`;
+  $("#when").classList.toggle("live", state.live);
 }
 function tick() {
   if (!state.live) return updateWhen();
@@ -343,10 +345,12 @@ const allStops = () => (stopsCache ||= api("/api/stops/map").then((rows) => {
 }));
 const mapsReady = () => typeof L !== "undefined";
 
+const isDark = () => document.documentElement.dataset.theme === "dark";
+const tileUrl = (key) => `https://{s}.basemaps.cartocdn.com/${isDark() ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png${key ? `?key=${encodeURIComponent(key)}` : ""}`;
 function makeMap(el, { center = DELHI, zoom = 11 } = {}) {
   if (!mapsReady() || !el) { if (el) el.innerHTML = `<div class="state"><b class="t-strong">Map unavailable</b><p>The map library didn't load.</p></div>`; return null; }
   const m = L.map(el, { center, zoom, zoomSnap: 0.5, scrollWheelZoom: false, attributionControl: true });   // lines as SVG: only the lines catch taps, stops below stay tappable
-  mapConfig().then(({ carto_key: key }) => alive(m) && L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${key ? `?key=${encodeURIComponent(key)}` : ""}`, {
+  mapConfig().then(({ carto_key: key }) => alive(m) && L.tileLayer(tileUrl(key), {
     subdomains: "abcd", maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(m));
@@ -417,7 +421,7 @@ function drawRide(layer, shape, profile, names, { ends = true, keys = [], map = 
   segs.forEach((pts) => pts.length > 1 && L.polyline(pts, { color: "#fff", weight: 10, opacity: 0.95, lineCap: "round", interactive: false }).addTo(layer));
   segs.forEach((pts, k) => {
     if (pts.length < 2) { lines.push(null); return; }
-    const pl = L.polyline(pts, { color: profile[k] != null ? fillOf(profile[k]) : css("--brand"), weight: 6, opacity: 1, lineCap: "round", dashArray: dash, className: "ride-line" });
+    const pl = L.polyline(pts, { color: profile[k] != null ? fillHex(profile[k]) : css("--brand"), tone: profile[k] != null ? profile[k] : "--brand", weight: 6, opacity: 1, lineCap: "round", dashArray: dash, className: "ride-line" });
     const show = () => { if (readout) { readout.innerHTML = stretchText(names[k], names[k + 1], pl._v); readout.classList.add("on"); } };
     pl.on("mouseover", () => { pl.setStyle({ weight: 10 }); show(); })
       .on("mouseout", () => { pl.setStyle({ weight: 6 }); if (readout) { readout.textContent = READ_HINT; readout.classList.remove("on"); } })
@@ -441,7 +445,7 @@ function drawRide(layer, shape, profile, names, { ends = true, keys = [], map = 
     (layer._syncs ||= []).push(() => map.off("zoomend", sync));
   } else layer.addLayer(mids);
   return {
-    recolour(values) { lines.forEach((pl, k) => { if (pl && values[k] != null) { pl._v = values[k]; pl.setStyle({ color: fillOf(values[k]) }); } }); },
+    recolour(values) { lines.forEach((pl, k) => { if (pl && values[k] != null) { pl._v = values[k]; pl.options.tone = values[k]; pl.setStyle({ color: fillHex(values[k]) }); } }); },
     highlight(k, on) {
       const mk = dots[k]; if (!mk || !map) return;
       if (on && !map.hasLayer(mk)) { map.addLayer(mk); mk._temp = true; }       // zoomed out: show just this one
@@ -490,7 +494,7 @@ async function pageHome() {
       </form>
       <div class="card live-card" id="live-card">${loading}</div>
     </div>
-    <div class="section-title"><h2 class="t-heading">What would you like to do?</h2></div>
+    <div class="section-title"><h2 class="t-heading">What would you like to do?</h2><a class="link t-small-strong" href="#/" data-tour>Take the tour</a></div>
     <div class="tiles">
       ${tile("#/plan", IC.plan, "Plan a trip", "Buses between two stops, with crowding")}
       ${tile("#/best", IC.clock, "Best time to travel", "When your trip is calmest")}
@@ -516,7 +520,7 @@ async function pageHome() {
       <svg class="chart" id="home-chart" viewBox="0 0 340 84" preserveAspectRatio="none" role="img" aria-label="Crowd index through the day"></svg>
       <div class="live-foot"><span class="t-caption muted">Tap or drag the line to see any time</span><button type="button" class="link t-small-strong ci-back" hidden>Back to ${state.live ? "now" : clock(state.minute)}</button>${liveLink() || `<a class="link t-small-strong" href="#/crowd">See crowding now</a>`}</div>`;
     const curve = p.curve.slice(10, 47), card = $("#live-card");
-    const ch = iChart($("#home-chart"), [{ values: curve, color: css("--brand"), fill: 0.07, marker: true }], { max: 100, index: slot,
+    const ch = iChart($("#home-chart"), [{ values: curve, color: "var(--brand)", fill: 0.07, marker: true }], { max: 100, index: slot,
       describe: (i) => `<b>${clock((i + 10) * 30)}</b> · ${curve[i]} · ${level(curve[i])}`, onMove: crowdIndexCard(card, p),
       hint: "Delhi bus crowd index through the day. Use the arrow keys to read any time." });
     $(".ci-back", card).onclick = () => ch.reset();
@@ -688,7 +692,7 @@ function showTripOnMap(o, i) {
     else dot(a, "xfer", `Change to ${esc(l.route.number)} at ${esc(l.board)}`);
     if (n === o.legs.length - 1) dot(b, "end", `Get off at ${esc(l.alight)}`);
     const next = o.legs[n + 1];
-    if (next && b && next.shape.stops?.[0]) L.polyline([b, next.shape.stops[0]], { color: css("--muted"), weight: 2, dashArray: "2 5", interactive: false }).addTo(tripLayer);
+    if (next && b && next.shape.stops?.[0]) L.polyline([b, next.shape.stops[0]], { color: css("--muted"), tone: "--muted", weight: 2, dashArray: "2 5", interactive: false }).addTo(tripLayer);
   });
   fitTo(planMap, tripLayer, 24);
   $("#plan-map-title").textContent = `Trip ${i + 1}: ${o.legs.map((l) => l.route.number).join(" then ")}`;
@@ -763,7 +767,7 @@ function renderPlan(p, from, to) {
       <div class="legs">${legs}</div></article>`;
   }).join("");
   const curve = p.departure_curve.length ? `<div class="card chart-card"><h3 class="t-heading">Crowding at other times</h3><p class="t-small muted">For the best overall trip, if you leave earlier or later.</p>
-    <div class="bars">${p.departure_curve.map((c) => `<button type="button" class="b ${c.offset === 0 ? "now" : ""}" data-m="${toMin(c.depart)}" aria-label="Leave at ${clock(toMin(c.depart))}, crowding ${c.crowd}" title="${clock(toMin(c.depart))} · crowding ${c.crowd}"><i style="height:${Math.max(6, c.crowd)}%;background:${c.offset === 0 ? css("--brand") : fillOf(c.crowd)}"></i><span>${short(toMin(c.depart))}</span></button>`).join("")}</div>
+    <div class="bars">${p.departure_curve.map((c) => `<button type="button" class="b ${c.offset === 0 ? "now" : ""}" data-m="${toMin(c.depart)}" aria-label="Leave at ${clock(toMin(c.depart))}, crowding ${c.crowd}" title="${clock(toMin(c.depart))} · crowding ${c.crowd}"><i style="height:${Math.max(6, c.crowd)}%;background:${c.offset === 0 ? "var(--brand)" : fillOf(c.crowd)}"></i><span>${short(toMin(c.depart))}</span></button>`).join("")}</div>
     <p class="t-small muted bars-read">Tap a time to see how crowded it is.</p>
     <a class="link t-small-strong" href="#/best?from=${enc(from)}&to=${enc(to)}">See the whole day</a></div>` : "";
   res.innerHTML = `<div class="page" style="margin:0">
@@ -858,11 +862,11 @@ async function pageCrowd() {
         <div><div class="section-title"><h3 class="t-heading">Better chance of a seat</h3></div><div class="card rows">${p.calmest.map((r) => routeRow(r)).join("")}</div></div>
       </div>
       <div class="section-title"><h3 class="t-heading">Changing fastest</h3><span class="t-small muted">compared with half an hour earlier</span></div>
-      <div class="card rows">${p.movers.slice(0, 8).map((r) => routeRow(r, `<span style="color:${r.change > 0 ? css("--c4") : css("--c1")}">${r.change > 0 ? "Getting busier" : "Getting calmer"}, ${r.change > 0 ? "up" : "down"} ${Math.abs(r.change).toFixed(1)}</span>`)).join("")}</div>
+      <div class="card rows">${p.movers.slice(0, 8).map((r) => routeRow(r, `<span style="color:${r.change > 0 ? "var(--c4)" : "var(--c1)"}">${r.change > 0 ? "Getting busier" : "Getting calmer"}, ${r.change > 0 ? "up" : "down"} ${Math.abs(r.change).toFixed(1)}</span>`)).join("")}</div>
       <p class="t-small muted plates-note"><span class="plate gold xs" aria-hidden="true"><span>717</span></span> Blue strip under the number: AC bus <span class="plate silver xs" aria-hidden="true"><span>534</span></span> No strip: non-AC bus</p></div>`;
     const curve = p.curve.slice(10, 47);
     const card = $("#crowd-card");
-    const ch = iChart($("#crowd-chart"), [{ values: curve, color: css("--brand"), fill: 0.07, marker: true }], { max: 100, index: slot,
+    const ch = iChart($("#crowd-chart"), [{ values: curve, color: "var(--brand)", fill: 0.07, marker: true }], { max: 100, index: slot,
       describe: (i) => `<b>${clock((i + 10) * 30)}</b> · ${curve[i]} · ${level(curve[i])}`, onMove: crowdIndexCard(card, p),
       hint: "Delhi bus crowd index through the day. Use the arrow keys to read any time." });
     $(".ci-back", card).onclick = () => ch.reset();
@@ -1002,7 +1006,7 @@ async function pageStop(key) {
 
 /* ---------- about / how we know ---------- */
 async function pageAbout() {
-  view.innerHTML = `<div class="page"><div class="page-head"><div><h1 class="t-title">How we know</h1><p class="t-small muted">The data and checks behind every number in Seat Signal.</p></div></div><div id="about-body">${loading}</div></div>`;
+  view.innerHTML = `<div class="page"><div class="page-head"><div><h1 class="t-title">How we know</h1><p class="t-small muted">The data and checks behind every number in Seat Signal. New here? <a class="link" href="#/" data-tour>Take the tour</a>.</p></div></div><div id="about-body">${loading}</div></div>`;
   try {
     const v = await api("/api/validation"), m = v.meta, po = v.peak_offpeak, so = v.stop_order, dt = v.daytype_avg_daily_boardings;
     const date = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -1076,10 +1080,10 @@ async function pageAbout() {
       ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Routes with fewer than 600 tickets are marked as limited data. A few routes (about 2% of tickets) aren't in the current timetable, so they are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Waiting times follow the DTC timetable; real buses can bunch up or run late.`, IC.alert)}
       <p class="t-small muted">Seat Signal is built for the Transport Stack Hackathon 2026, Delhi, Problem 2: crowdedness-aware journey planner. Data: ONDC bus e-ticketing from Transport Stack and IIIT Delhi. API documentation: <a class="link" href="/docs">/docs</a>.</p></div>`;
     const wkB = v.weekday_boardings_by_slot.slice(10, 47), suB = v.weekend_boardings_by_slot.slice(10, 47);
-    iChart($("#about-chart"), [{ values: suB, color: css("--silver-edge"), width: 1.5 }, { values: wkB, color: css("--brand"), fill: 0.07, marker: true }], { max: Math.max(...wkB), index: 8,
+    iChart($("#about-chart"), [{ values: suB, color: "var(--silver-edge)", width: 1.5 }, { values: wkB, color: "var(--brand)", fill: 0.07, marker: true }], { max: Math.max(...wkB), index: 8,
       describe: (i) => `<b>${clock((i + 10) * 30)}</b> · weekday ${inr(Math.round(wkB[i]))} · Sunday ${inr(Math.round(suB[i]))}`,
       hint: "Boardings per half hour. Use the arrow keys to move through the day." });
-    if (kmh.length && $("#speed-chart")) iChart($("#speed-chart"), [{ values: kmh, color: css("--brand"), fill: 0.07, marker: true }], { max: Math.max(...kmh) * 1.1, index: 18,
+    if (kmh.length && $("#speed-chart")) iChart($("#speed-chart"), [{ values: kmh, color: "var(--brand)", fill: 0.07, marker: true }], { max: Math.max(...kmh) * 1.1, index: 18,
       describe: (i) => `<b>${clock(i * 60)}</b> · ${kmh[i]} km/h on average`,
       hint: "Average weekday bus speed by hour. Use the arrow keys to move through the day." });
   } catch (e) { $("#about-body").innerHTML = errorBox(e.message); }
@@ -1119,3 +1123,130 @@ window.addEventListener("hashchange", () => render());
 setupWhen();
 tick();                 // sets live time; renders once because the slot is new
 setInterval(tick, 20000);
+
+/* ---------- first-visit tour ----------
+   A welcome card, then a spotlight that moves over the real parts of Home with a line about each.
+   Starts by itself only on a first visit that lands on Home; "Take the tour" replays it. */
+const TOUR_KEY = "ss-tour-done";
+const TOUR_STEPS = [
+  { sel: "#home-form", title: "Plan a trip", body: "Type where you are and where you're going. Every bus shows how long it takes, how long you'll wait, the fare and how full it's likely to be." },
+  { sel: "#live-card", title: "How busy buses are right now", body: "Delhi's crowd index for this half hour, learned from October's e-tickets. Drag across the chart to see other times of day." },
+  { sel: "#when", title: "Live, or plan ahead", body: "Seat Signal follows the time in Delhi, and shows live buses from the DTC feed. Tap here to plan for another day or time." },
+  { sel: ".tiles", title: "Everything else is one tap away", body: "The calmest time for your trip, live buses on any route, every bus at a stop, and how we worked it all out. Tap the ? at the top to see this tour again." },
+];
+let tourEl = null;
+function startTour() {
+  if (tourEl) return;
+  if (!/^#?\/?$/.test(location.hash.replace(/\?.*/, ""))) { location.hash = "#/"; return setTimeout(startTour, 700); }
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const lv = ["Comfortable", "Moderate", "Busy", "Packed"];
+  tourEl = document.createElement("div");
+  tourEl.className = "tour";
+  tourEl.innerHTML = `<div class="tour-hole" aria-hidden="true"></div>
+    <div class="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
+      <div class="tour-body" aria-live="polite"></div>
+      <div class="tour-foot"><span class="tour-dots" aria-hidden="true">${TOUR_STEPS.map(() => "<i></i>").join("")}</span>
+        <span class="tour-btns"><button type="button" class="btn quiet tour-skip">Skip</button><button type="button" class="btn secondary tour-back">Back</button><button type="button" class="btn primary tour-next">Next</button></span></div>
+    </div>`;
+  document.body.appendChild(tourEl);
+  const hole = $(".tour-hole", tourEl), card = $(".tour-card", tourEl), body = $(".tour-body", tourEl);
+  const before = document.activeElement;
+  let i = -1, target = null, raf = 0;
+
+  const place = () => {
+    const vw = innerWidth, vh = innerHeight, phone = vw < 600;
+    if (!target) { tourEl.classList.add("welcome"); return; }
+    tourEl.classList.remove("welcome");
+    const r = target.getBoundingClientRect(), pad = 8;
+    const x = Math.max(4, r.left - pad), y = Math.max(4, r.top - pad);
+    const w = Math.min(vw - 8, r.right + pad) - x, h = Math.min(vh - 8, r.bottom + pad) - y;
+    hole.style.transform = `translate(${x}px, ${y}px)`; hole.style.width = `${w}px`; hole.style.height = `${h}px`;
+    if (phone) { card.style.left = card.style.top = ""; return; }      // docked at the bottom on phones
+    const cw = card.offsetWidth, ch = card.offsetHeight, gap = 14;
+    let top = y + h + gap <= vh - ch - 16 ? y + h + gap : y - gap - ch >= 16 ? y - gap - ch : vh - ch - 16;
+    let left = Math.min(Math.max(16, x), vw - cw - 16);
+    card.style.left = `${left}px`; card.style.top = `${top}px`;
+  };
+  const follow = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(place); };
+
+  const show = (n) => {
+    i = n;
+    const s = TOUR_STEPS[i];
+    target = s ? $(s.sel) : null;
+    if (s && !target) return show(i + 1 < TOUR_STEPS.length ? i + 1 : -1);
+    body.innerHTML = s
+      ? `<p class="t-caption muted tour-count">${i + 1} of ${TOUR_STEPS.length}</p><h2 class="t-heading" id="tour-title">${s.title}</h2><p class="t-small">${s.body}</p>`
+      : `<div class="tour-meter" aria-hidden="true">${lv.map((l, k) => `<span style="--k:${k}"><i class="f${k + 1}"></i><small>${l}</small></span>`).join("")}</div>
+         <h2 class="t-title" id="tour-title">Know the crowd before you board</h2>
+         <p class="t-small">Seat Signal shows how full a Delhi bus is likely to be, stretch by stretch, before you get on. It takes about 30 seconds to show you around.</p>`;
+    $$(".tour-dots i", tourEl).forEach((d, k) => d.classList.toggle("on", k === i));
+    $(".tour-back", tourEl).hidden = i < 0;
+    $(".tour-next", tourEl).textContent = i < 0 ? "Show me around" : i === TOUR_STEPS.length - 1 ? "Start planning" : "Next";
+    card.classList.remove("in"); void card.offsetWidth; card.classList.add("in");   // replay the card's entrance for each step
+    if (target && target.closest(".topbar")) scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });    // the top bar never scrolls away
+    else if (target) {
+      const phone = innerWidth < 600, r = target.getBoundingClientRect();
+      const top = phone ? r.top + scrollY - 72 : r.top + scrollY - Math.max(72, (innerHeight - r.height) / 2 - 80);
+      scrollTo({ top: Math.max(0, top), behavior: still ? "auto" : "smooth" });
+    }
+    place(); card.focus({ preventScroll: true });
+  };
+  const end = (done) => {
+    store.set(TOUR_KEY, true);
+    removeEventListener("scroll", follow); removeEventListener("resize", follow); removeEventListener("keydown", keys, true);
+    tourEl.classList.add("out");
+    const el = tourEl; tourEl = null;
+    setTimeout(() => el.remove(), still ? 0 : 200);
+    if (done) { scrollTo({ top: 0, behavior: still ? "auto" : "smooth" }); setTimeout(() => $("#h-from")?.focus(), 350); }
+    else before?.focus?.({ preventScroll: true });
+  };
+  const next = () => (i === TOUR_STEPS.length - 1 ? end(true) : show(i + 1));
+  const back = () => show(i - 1);
+  const keys = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); end(false); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+    else if (e.key === "ArrowLeft" && i >= 0) { e.preventDefault(); back(); }
+    else if (e.key === "Tab") {                                     // keep focus inside the tour
+      const f = $$("button:not([hidden])", card); const a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+    }
+  };
+  $(".tour-next", tourEl).onclick = next; $(".tour-back", tourEl).onclick = back; $(".tour-skip", tourEl).onclick = () => end(false);
+  addEventListener("scroll", follow, { passive: true }); addEventListener("resize", follow); addEventListener("keydown", keys, true);
+  requestAnimationFrame(() => { tourEl?.classList.add("show"); show(-1); });
+}
+window.startTour = startTour;
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-tour]"); if (t) { e.preventDefault(); startTour(); } });
+if (!store.get(TOUR_KEY, false) && /^#?\/?$/.test(location.hash)) setTimeout(() => { if ($("#home-form")) startTour(); }, 900);
+
+
+/* ---------- day and night ----------
+   Follows the phone or computer's own setting until someone picks; the pick is remembered.
+   Switching repaints maps and charts in place (no reload), and night spreads out from the switch. */
+const THEME_KEY = "ss-theme", sysDark = matchMedia("(prefers-color-scheme: dark)");
+function paintTheme(t) {
+  const root = document.documentElement;
+  root.dataset.theme = t;
+  $('meta[name="theme-color"]')?.setAttribute("content", t === "dark" ? "#141A22" : "#FFFFFF");
+  const b = $("#theme-btn");
+  if (b) { b.setAttribute("aria-pressed", t === "dark"); b.setAttribute("aria-label", t === "dark" ? "Switch to day mode" : "Switch to night mode"); b.title = b.getAttribute("aria-label"); }
+  mapConfig().then(({ carto_key: key }) => liveMaps.forEach((m) => m.eachLayer((l) => {
+    if (l instanceof L.TileLayer) l.setUrl(tileUrl(key));
+    else if (l instanceof L.Path && l.options.tone != null) l.setStyle({ color: typeof l.options.tone === "number" ? fillHex(l.options.tone) : css(l.options.tone) });
+  })));
+}
+function setTheme(t, from) {
+  store.set(THEME_KEY, t);
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!document.startViewTransition || still || !from) return paintTheme(t);
+  const r = from.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const far = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  document.startViewTransition(() => paintTheme(t)).ready.then(() => {
+    document.documentElement.animate({ clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${far}px at ${x}px ${y}px)`] },
+      { duration: 560, easing: "cubic-bezier(0.77, 0, 0.175, 1)", pseudoElement: "::view-transition-new(root)" });
+  }).catch(() => {});
+}
+paintTheme(store.get(THEME_KEY, null) || (sysDark.matches ? "dark" : "light"));
+$("#theme-btn")?.addEventListener("click", (e) => setTheme(isDark() ? "light" : "dark", e.currentTarget));
+sysDark.addEventListener?.("change", (e) => { if (!store.get(THEME_KEY, null)) paintTheme(e.matches ? "dark" : "light"); });
