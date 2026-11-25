@@ -1,0 +1,7 @@
+* text=auto
+*.gz binary
+*.npz binary
+*.pdf binary
+*.mp4 binary
+*.png binary
+*.woff2 binary

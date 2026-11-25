@@ -130,7 +130,15 @@ The shape of the day and the ranking of routes repeat every week. A single route
 moves by about a fifth from week to week, mostly on small counts, which is why the app averages
 all October days of the same type and labels thin routes.
 
-## 7. Fares
+## 7. Waiting times
+
+From the DTC GTFS timetable (feed version 32): 65,116 scheduled departures on 1,644 route directions, covering
+98.4% of tickets. Each stop's departures are the route's start times plus the scheduled running time to that
+stop. The wait shown is the average for someone arriving within 15 minutes either side of the chosen time;
+routes with no timetable use 8 minutes. Every trip time includes it, and a change of bus adds a 3-minute walk
+plus the wait for the next bus.
+
+## 8. Fares
 
 For each route, the fare for riding a given number of stops is the most common price paid on
 October e-tickets for that ride (needs 5 or more tickets; gaps take the nearest known step, and a
@@ -145,7 +153,7 @@ neighbouring towns. A trip with a change of bus needs one ticket per bus.
 | Within ₹5 of the price paid | 97.7% |
 | Typical (mean) error | ₹1.08 |
 
-## 8. Known limits
+## 9. Known limits
 
 - **E-tickets are a sample.** ONDC tickets are some of the riders, so the Crowd Index is
   relative, not a passenger count. Routes with fewer than 600 tickets are labelled "limited
@@ -154,6 +162,6 @@ neighbouring towns. A trip with a change of bus needs one ticket per bus.
   processed (adding one more day file fixes this).
 - **A few routes aren't in the GTFS.** About 1.6% of tickets are on routes the current feed doesn't list. They are
   timed from the distance between their two end stops and drawn straight between stops.
-- **Times are in-bus times.** Waiting for the bus isn't included.
+- **Waits follow the timetable.** Real buses bunch up or run late, so actual waits vary more than the app shows.
 - **GPS route IDs aren't linked to ticket routes**, so speeds are measured per area of the
   city, not per route.

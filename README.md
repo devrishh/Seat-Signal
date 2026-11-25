@@ -33,7 +33,7 @@ The repo runs on Vercel as it is: `index.py` points Vercel to the app, and `.ver
 
 ## What's in the app
 
-- **Plan a trip.** Pick two stops and a time. Each bus option shows the ride time, how crowded it usually is, your chance of a seat, the fare, and a map with each stretch coloured by crowding. Sort by fastest, calmest or cheapest. If leaving a little earlier or later is much calmer, it tells you.
+- **Plan a trip.** Pick two stops and a time. Each bus option shows the trip time including the usual wait, how often the bus comes, how crowded it usually is, your chance of a seat, the fare, and a map with each stretch coloured by crowding. Sort by fastest, calmest or cheapest. If leaving a little earlier or later is much calmer, it tells you.
 - **Best time to travel.** Your trip checked every half hour from 5:30 am to 11 pm.
 - **Crowd right now.** The citywide crowding level, the busiest routes, the big routes with room, and the ones filling up fastest.
 - **Routes and stops.** Crowding through the day for every route and stop, and along each route on a map.
@@ -63,7 +63,8 @@ python pipeline/build_geometry.py path/to/gtfs
 # 4. Run the model again so it uses the GTFS stop order
 python pipeline/build_model.py
 
-# 5. Fares, and the week-to-week check
+# 5. Waiting times from the timetable, fares, and the week-to-week check
+python pipeline/build_schedule.py path/to/gtfs
 python pipeline/build_fares.py
 python pipeline/check_weeks.py
 ```

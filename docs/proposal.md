@@ -15,7 +15,7 @@ We picked Problem 2 because the ticket data can answer the second one. Every tic
 
 Seat Signal is a website that works on phones and laptops. You pick two stops and a time, and it lists the bus options. Each option shows:
 
-- how long the ride takes at that hour
+- how long the trip takes at that hour, including the usual wait for the bus (from the DTC timetable)
 - how crowded the bus usually is, in words a commuter reads in a second (Comfortable, Moderate, Busy, Packed), and what that means for you ("seats likely", "expect to stand")
 - your chance of getting a seat where you board
 - the e-ticket fare
@@ -56,6 +56,6 @@ We checked the estimates against things we already know about Delhi's buses, and
 
 - Add conductor (ETM) ticket counts to turn the crowd index into real numbers of people on board
 - Rebuild individual bus trips from vehicle numbers where they exist, and use bus length (9 m or 12 m) so the same load reads right on both
-- Draw each route along its real road path, using the shapes in the current GTFS
+- Replace timetable waits with live arrival times from the ETA service and GPS feed
 - Use live GPS to show today's delays next to the usual crowding
 - Give operators a simple report of overloaded routes and hours, and where an extra bus would help most

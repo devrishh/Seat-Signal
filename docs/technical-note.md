@@ -2,7 +2,7 @@
 
 Transport Stack Hackathon 2026, Delhi. Problem 2, Phase 1.
 
-This note covers how we turn tickets into crowding, what we assume, and where the numbers are weakest. The full set of checks is in `docs/validation.md` in the repo, and the app shows them on its "How we know" page. The scripts in `pipeline/` produce every number here, and the README has the commands to rerun them.
+This note covers how we turn tickets into crowding, what we assume, and where the numbers are weakest. The full set of checks is in `docs/validation.md` in the repo, and the app shows them on its "How we know" page.
 
 ## Method
 
@@ -14,9 +14,11 @@ This note covers how we turn tickets into crowding, what we assume, and where th
 
 The brief suggests grouping tickets by bus trip and keeping a running count. About half the tickets have no vehicle number, so we can't rebuild individual trips reliably. We keep the running count per route and half hour instead, which gives the same answer averaged over all the buses on that route.
 
-**Crowd index.** E-tickets are only part of the ridership, so raw counts aren't bus loads. We use a 0 to 100 index: `100 × log(1 + load) / log(1 + cap)`, where `cap` is 1.3 times the 99.9th percentile of daytime weekday stretch loads across the network. The log scale keeps differences visible on busy corridors as well as quiet ones. Under 35 is Comfortable, under 60 Moderate, under 80 Busy, and the rest Packed. The seat chance shown in the app comes from the index where you board.
+**Crowd index.** E-tickets are only part of the ridership, so raw counts aren't bus loads. We use a 0 to 100 index: `100 × log(1 + load) / log(1 + cap)`, where `cap` is 1.3 times the 99.9th percentile of daytime weekday stretch loads across the network. Under 35 is Comfortable, under 60 Moderate, under 80 Busy, and the rest Packed. The seat chance shown in the app comes from the index where you board.
 
-**Travel time.** Each stretch's length comes from GTFS stop positions. Its speed is how fast GPS-tracked buses moved through that 1 km grid cell in that half hour, stops at signals included and layovers at terminals left out (GPS from 14, 15, 16 and 18 October). A change of bus adds 7 minutes and is only offered where both routes stop at the same place, because 140 stop names exist in more than one part of Delhi.
+**Travel time.** Each stretch's length comes from GTFS stop positions. Its speed is how fast GPS-tracked buses moved through that 1 km grid cell in that half hour, stops at signals included and layovers at terminals left out (GPS from 14, 15, 16 and 18 October). The map draws each ride along the route's road path from the GTFS `shapes.txt`.
+
+**Waiting.** From the GTFS timetable (65,116 departures, 98.4% of tickets), shifted to each stop by its scheduled running time, we take how often a bus comes and the average wait for someone arriving around their chosen time. It is part of every trip time. A change of bus adds a 3-minute walk plus the wait for the next bus, and is only offered where both routes stop at the same place, because 140 stop names exist in more than one part of Delhi.
 
 **Fare.** For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. It matches the exact price paid on 78.6% of tickets, with a typical error of ₹1.08.
 
@@ -37,13 +39,12 @@ The brief suggests grouping tickets by bus trip and keeping a running count. Abo
 - **Riders missing from the data.** The file has only ONDC e-tickets: no conductor tickets, passes or free travel. We assume those riders follow the same pattern by route and hour, so the index compares crowding rather than counting heads. With ETM counts the same pipeline could scale each route to real numbers.
 - **Where people get off.** We take the end stop on the ticket as where the rider leaves. People who get off a stop early or late move crowding by a stretch or two, not the shape of the day.
 - **Bus size.** There's no bus type in the data, so all buses count as the same size. The same load on a 9 m bus is more crowded than the index shows.
-- **A usual day.** The app shows the October average for that kind of day and half hour. It doesn't know about today's breakdowns or traffic.
+- **A usual day.** The app shows the October average for that kind of day and half hour. It doesn't know about today's breakdowns or traffic, and waits assume buses keep to the timetable, which real buses often don't.
 
 ## Where it's least reliable
 
 - Routes with fewer than 600 e-tickets in October. They're labelled "Limited data" and only appear in trip results when nothing better exists.
-- Late at night on any route, when there are few tickets.
 - Ring routes like the Mudrikas, where the stop order is hard to pin down.
 - About 1.6% of tickets are on routes the current GTFS doesn't list. Their order comes from tickets, their time from the distance between end stops, and their map lines go straight between stops.
-- Saturdays. We had no Saturday GPS, so Saturday speeds are the average of weekday and Sunday.
-- Anything seasonal. One month can't show festivals, school holidays or the monsoon.
+- Saturday speeds, which are the average of weekday and Sunday (no Saturday GPS).
+- Late at night, and anything seasonal: one month can't show festivals, school holidays or the monsoon.

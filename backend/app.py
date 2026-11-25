@@ -37,6 +37,30 @@ TRAVEL = Travel(ROUTES, ROOT / "data")
 # e-ticket fare by route and number of stops ridden (pipeline/build_fares.py); optional
 _fp = ROOT / "data" / "fares.json"
 FARES = json.loads(_fp.read_text()) if _fp.exists() else {}
+# timetable departures per route and minutes from the first stop to each stop (pipeline/build_schedule.py)
+_sp = ROOT / "data" / "schedule.json"
+SCHED = {k: (np.array(v["dep"], float), np.array(v["off"], float))
+         for k, v in (json.loads(_sp.read_text()) if _sp.exists() else {}).items()}
+WALK_MIN = 3              # walking between buses at a change
+DEFAULT_WAIT = 8          # routes with no timetable: a typical wait
+
+
+def wait_at(rid: str, i: int, minute: float):
+    """Average wait for a rider who reaches stop i of route rid around `minute` (any time in the
+    surrounding half hour, since buses rarely keep to the minute), and the usual gap between buses.
+    Returns (wait minutes, every N minutes or None, source)."""
+    sc = SCHED.get(rid)
+    if sc is None:
+        return DEFAULT_WAIT, None, "estimate"
+    dep, off = sc
+    at = np.sort((dep + off[min(i, len(off) - 1)]) % 1440)
+    at = np.r_[at, at + 1440]                        # tomorrow's first buses after midnight
+    arrive = (minute + np.arange(-15, 15)) % 1440
+    nxt = at[np.searchsorted(at, arrive)]
+    wait = float(np.minimum(nxt - arrive, 90).mean())
+    near = at[(at >= (minute - 45) % 1440) & (at <= (minute - 45) % 1440 + 90)]
+    every = int(round(float(np.median(np.diff(near))))) if len(near) >= 3 else None
+    return wait, every, "timetable"
 DAY = {"weekday": 0, "saturday": 1, "sunday": 2}
 TRANSFER_MIN = 7          # walking + waiting at an interchange
 MAX_TRANSFER_SCAN = 45    # stops scanned along each leg when looking for interchanges
@@ -162,8 +186,11 @@ def evaluate(option: tuple, minute: float, d: int) -> dict:
     legs, t = [], minute
     for n, (rid, i, j) in enumerate(option):
         if n:
-            t += TRANSFER_MIN
+            t += WALK_MIN
+        w, every, src = wait_at(rid, i, t)
+        t += w
         leg = leg_out(rid, i, j, t, d)
+        leg.update(wait=round(w), every=every, wait_source=src)
         legs.append(leg)
         t += leg["minutes"]
     total = t - minute
@@ -176,6 +203,7 @@ def evaluate(option: tuple, minute: float, d: int) -> dict:
                 km=None if any(l["km"] is None for l in legs) else round(sum(l["km"] for l in legs), 1),
                 time_source="gps" if all(l["time_source"] == "gps" for l in legs) else "estimate",
                 fare=None if any(l["fare"] is None for l in legs) else sum(l["fare"] for l in legs),
+                wait=sum(l["wait"] for l in legs), ride=sum(l["minutes"] for l in legs),
                 confidence="low" if any(l["route"]["low_data"] for l in legs) else "high")
 
 
@@ -509,6 +537,9 @@ def validation():
     )
     fc = ROOT / "data" / "fares_check.json"
     v["fares"] = json.loads(fc.read_text()) if fc.exists() else None
+    tot = sum(r["tickets"] for r in ROUTES.values())
+    v["schedule"] = dict(routes=len(SCHED), departures=int(sum(len(x[0]) for x in SCHED.values())),
+                         tickets_share=round(sum(ROUTES[k]["tickets"] for k in SCHED if k in ROUTES) / tot, 4))
     st = ROOT / "data" / "stability.json"
     v["stability"] = json.loads(st.read_text()) if st.exists() else None
     return v

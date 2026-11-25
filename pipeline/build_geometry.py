@@ -39,6 +39,7 @@ WORK = ROOT / "work"                                                  # route_or
 NAME_SCORE = 86         # fuzzy name score (0-100) for a stop to match a stop of the same route
 NEAR_KM = 0.6           # or: a stop located elsewhere lies this close to a stop of the route
 MIN_PLACED = 0.6        # share of a route's stops that must be placed to trust GTFS order
+SNAP_KM = 0.3          # a stop must lie within this distance of the route's road path to use it
 FILLER = r"\b(t|terminal|metro station|metro|station|stop|bus|depot|opposite|near|crossing|chowk|more|xing|nh8|nh 8)\b"
 
 
@@ -66,7 +67,7 @@ def hav(la1, lo1, la2, lo2):
 def load_gtfs():
     routes = pd.read_csv(GTFS / "routes.txt", dtype={"route_id": str})
     stops = pd.read_csv(GTFS / "stops.txt", dtype={"stop_id": str})
-    trips = pd.read_csv(GTFS / "trips.txt", dtype={"route_id": str, "trip_id": str})
+    trips = pd.read_csv(GTFS / "trips.txt", dtype={"route_id": str, "trip_id": str, "shape_id": str})
     st = pd.read_csv(GTFS / "stop_times.txt", dtype={"trip_id": str, "stop_id": str},
                      usecols=["trip_id", "stop_id", "stop_sequence"])
     stops["k"] = stops.stop_name.map(norm_stop)
@@ -75,18 +76,48 @@ def load_gtfs():
     st = st[st.trip_id.isin(rep.index)].sort_values(["trip_id", "stop_sequence"])
     seq = {rep[t]: g.stop_id.tolist() for t, g in st.groupby("trip_id")}
     key = lambda s: re.sub(r"[^A-Z0-9]", "", str(s).upper())
+    # the road path each route's representative trip follows (shapes.txt; older feeds have none)
+    shp_of_route, shp = {}, {}
+    if "shape_id" in trips and (GTFS / "shapes.txt").exists():
+        sid = trips.set_index("trip_id").shape_id
+        shp_of_route = {r: sid.get(t) for t, r in rep.items()}
+        want = {v for v in shp_of_route.values() if isinstance(v, str)}
+        sh = pd.read_csv(GTFS / "shapes.txt", dtype={"shape_id": str},
+                         usecols=["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"])
+        sh = sh[sh.shape_id.isin(want)].sort_values(["shape_id", "shape_pt_sequence"])
+        shp = {k: g[["shape_pt_lat", "shape_pt_lon"]].to_numpy(float) for k, g in sh.groupby("shape_id")}
     by_name: dict[str, list[str]] = {}
+    road: dict[str, np.ndarray] = {}
     for rid, name in zip(routes.route_id, routes.route_long_name):
         if rid in seq and len(seq[rid]) > len(by_name.get(key(name), [])):
             by_name[key(name)] = seq[rid]
-    return stops, by_name, key
+            road[key(name)] = shp.get(shp_of_route.get(rid))
+    return stops, by_name, key, road
+
+
+def snap_to_road(lat, lon, P, near_km=SNAP_KM):
+    """Index of each GTFS stop along the road path P, always moving forward.
+    Returns None if any stop is further than near_km from the path (then the straight stop line is kept)."""
+    idx, start = [], 0
+    for a, b in zip(lat, lon):
+        d = hav(a, b, P[start:, 0], P[start:, 1])
+        close = np.flatnonzero(d <= near_km)
+        if not len(close):
+            return None
+        run_end = close[0]                              # first stretch of the path that passes the stop
+        while run_end + 1 < len(d) and d[run_end + 1] <= near_km:
+            run_end += 1
+        k = close[0] + int(d[close[0]: run_end + 1].argmin())
+        start += k
+        idx.append(start)
+    return idx
 
 
 def main():
     with gzip.open(MODEL, "rb") as f:
         M = pickle.load(f)
     R = M["routes"]
-    stops, by_name, key = load_gtfs()
+    stops, by_name, key, road = load_gtfs()
     S = stops.set_index("stop_id")
 
     # pass 0: coordinates for stops whose name is unambiguous in GTFS (one place, < 1 km spread)
@@ -120,6 +151,7 @@ def main():
         return pos, lat, lon, cum
 
     order, geo, found, detour = {}, {}, {}, []
+    on_road = 0
     for rid, r in R.items():
         res = place(rid)
         if not res:
@@ -133,6 +165,12 @@ def main():
         pt = {s: (float(lat[j]), float(lon[j])) for s, j in pos.items()}   # where THIS route stops
         geo[rid] = dict(source="gtfs", km=km, pt=pt, pos={s: int(j) for s, j in pos.items()},
                         path=np.c_[lat, lon].astype(np.float32))       # every GTFS stop, for maps
+        P = road.get(key(rid))
+        if P is not None and len(P) >= 2:
+            ix = snap_to_road(lat, lon, P)
+            if ix is not None:                        # draw the real road: positions along the road path
+                geo[rid].update(path=P.astype(np.float32), pos={s: int(ix[j]) for s, j in pos.items()}, road=True)
+                on_road += 1
         for s, j in pos.items():
             found.setdefault(s, []).append((lat[j], lon[j]))
         if len(pos) >= 2:
@@ -157,7 +195,7 @@ def main():
     stop_points = {k: pts[k] for k in M["stops"] if k in pts}
     tickets = sum(r["tickets"] for r in R.values())
     stats = dict(
-        routes=len(R), routes_gtfs_order=len(order),
+        routes=len(R), routes_gtfs_order=len(order), routes_on_road_path=on_road,
         tickets_gtfs_order=round(sum(R[k]["tickets"] for k in order) / tickets, 4),
         stops_located=len(stop_points), stops_total=len(M["stops"]),
         volume_located=round(sum(M["stops"][k]["volume"] for k in stop_points)
