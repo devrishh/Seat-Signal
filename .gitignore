@@ -4,3 +4,5 @@ carto_key.txt
 .env
 work/gps/log_*.txt
 ts_key.txt
+work/runtimes/*.npz
+work/runtimes/bg_test.txt

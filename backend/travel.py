@@ -44,7 +44,46 @@ def fallback_minutes_per_stop(minute: float) -> float:
     return 1.9
 
 
+class RunTimes:
+    """Stop-to-stop running times learned from real bus trips (data/runtimes.npz, built by
+    pipeline/build_runtimes.py): minutes from leaving stop k to leaving stop k+1, by hour,
+    for weekdays and Sundays. A negative value means "all-day median, too few trips that hour"."""
+
+    def __init__(self, path):
+        self.by: dict[str, np.ndarray] = {}
+        p = Path(path)
+        if p.exists():
+            z = np.load(p)
+            for n, rid in enumerate(z["rids"]):
+                self.by[str(rid)] = np.abs(z[f"r{n}"].astype(np.float32))
+
+    def stretch(self, rid: str, k: int, minute: float, d: int) -> float | None:
+        a = self.by.get(rid)
+        if a is None or k >= a.shape[2]:
+            return None
+        h = int(minute // 60) % 24
+        if d == 1:                                            # Saturday: between a weekday and a Sunday
+            v = np.nanmean([a[0, h, k], a[1, h, k]])
+        else:
+            v = a[1 if d == 2 else 0, h, k]
+            if np.isnan(v):
+                v = a[0 if d == 2 else 1, h, k]               # the other kind of day is better than nothing
+        return None if np.isnan(v) else float(v)
+
+    def minutes(self, rid: str, i: int, j: int, minute: float, d: int):
+        t = float(minute)
+        for k in range(i, j):
+            v = self.stretch(rid, k, t, d)
+            if v is None:
+                return None
+            t += v
+        return t - minute
+
+
 class Travel:
+    # the grid-speed estimate ran about 9% slow against real trips (pipeline/check_runtimes.py), so it is scaled down
+    GRID_CAL = 0.92
+
     def __init__(self, routes: dict, data_dir: Path):
         with gzip.open(data_dir / "geometry.pkl.gz", "rb") as f:
             G = pickle.load(f)
@@ -56,6 +95,7 @@ class Travel:
         pts = G["stop_points"]
         self.pts = pts
         self.ambiguous = set(G.get("ambiguous", ()))
+        self.rt = RunTimes(data_dir / "runtimes.npz")
         self.geo: dict[str, dict] = {}
         for rid, r in routes.items():
             stops = r["stops"]
@@ -91,7 +131,23 @@ class Travel:
 
     # ------------------------------------------------------------------ rides
     def ride(self, rid: str, stops: list[str], i: int, j: int, minute: float, d: int):
-        """Returns (minutes at each stop i..j relative to boarding, km, source)."""
+        """Returns (minutes at each stop i..j relative to boarding, km, source).
+        Real trips first: each stretch the time buses actually took at that hour. A stretch no
+        bus was seen on is filled from the grid estimate, scaled by how far off that runs."""
+        times, km, source = self._grid_ride(rid, stops, i, j, minute, d)
+        if self.rt.by.get(rid) is None:
+            return [x * self.GRID_CAL for x in times], km, source
+        t, out, filled = float(minute), [0.0], 0
+        for k in range(i, j):
+            v = self.rt.stretch(rid, k, t, d)
+            if v is None:
+                v = (times[k - i + 1] - times[k - i]) * self.GRID_CAL
+                filled += 1
+            t += v
+            out.append(t - minute)
+        return out, km, ("trips" if filled == 0 else "trips+estimate" if filled < (j - i) else source)
+
+    def _grid_ride(self, rid: str, stops: list[str], i: int, j: int, minute: float, d: int):
         g = self.geo.get(rid, {"source": "none"})
         t, times = float(minute), [0.0]
         crow = None

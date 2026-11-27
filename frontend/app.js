@@ -414,11 +414,11 @@ async function stopsLayer(m, { pick } = {}) {
   return list;
 }
 
-/* Draw one ride (a leg, or a whole route): white casing, crowd-coloured stretches you can hover
+/* Draw one ride (a leg, or a whole route): a casing (white by day, dark at night), crowd-coloured stretches you can hover
    and tap, fixed-size stop dots. Returns handles to recolour it and to highlight a stop. */
 function drawRide(layer, shape, profile, names, { ends = true, keys = [], map = null, stopInfo = null, readout = null } = {}) {
   const segs = shape.segments || [], dash = null, lines = [], dots = [];   // solid lines even where the path is approximate
-  segs.forEach((pts) => pts.length > 1 && L.polyline(pts, { color: "#fff", weight: 10, opacity: 0.95, lineCap: "round", interactive: false }).addTo(layer));
+  segs.forEach((pts) => pts.length > 1 && L.polyline(pts, { color: css("--casing"), tone: "--casing", weight: 10, opacity: 0.95, lineCap: "round", interactive: false }).addTo(layer));
   segs.forEach((pts, k) => {
     if (pts.length < 2) { lines.push(null); return; }
     const pl = L.polyline(pts, { color: profile[k] != null ? fillHex(profile[k]) : css("--brand"), tone: profile[k] != null ? profile[k] : "--brand", weight: 6, opacity: 1, lineCap: "round", dashArray: dash, className: "ride-line" });
@@ -744,21 +744,24 @@ function renderPlan(p, from, to) {
     const tags = (o.live ? `<span class="pill live">Live: bus ${o.live.stops_away ? `due in ${plural(o.live.eta, "minute")}` : "at the stop"}</span>` : "") + o.tags.map((t) => `<span class="pill brand">${t}</span>`).join("") + (o.confidence === "low" ? `<span class="pill warn">Limited data</span>` : "")
       + (o.time_source === "estimate" ? `<span class="pill warn">Time estimated</span>` : "");
     const chain = o.legs.map((l) => plate(l.route, "sm")).join(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
-    const legs = o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}Change buses at ${esc(l.board)}. Walk about 3 minutes, then wait about ${plural(l.wait, "minute")} (${every(l)}).</div>` : ""}
+    const waitText = (l) => l.wait_source === "live" ? (l.wait ? `Bus due in about ${plural(l.wait, "minute")} (live)` : "Bus at the stop now (live)") : `Wait about ${plural(l.wait, "minute")} (${every(l)})`;
+    const legs = (o.walk_start ? `<div class="xfer">${IC.walk}Walk about ${plural(o.walk_start, "minute")} (${o.walk_start_m} m) to ${esc(o.legs[0].board)}.</div>` : "")
+      + o.legs.map((l, n) => `${n ? `<div class="xfer">${IC.walk}${o.legs[n - 1].alight === l.board ? `Change buses at ${esc(l.board)}. Walk about 3 minutes` : `Get off at ${esc(o.legs[n - 1].alight)} and walk to ${esc(l.board)}, about 3 minutes`}, then wait about ${plural(l.wait, "minute")} (${every(l)}).</div>` : ""}
       <div class="leg"><div class="leg-head">${plate(l.route, "sm")}<span><b>${esc(l.board)} to ${esc(l.alight)}</b>
-      <small>${n ? "" : `Wait about ${plural(l.wait, "minute")} (${every(l)}), then `}${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")}${l.fare != null ? ` · ${rupees(l.fare)}` : ""} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
-      ${stopsList(l.stop_names, l.profile)}</div>`).join("") + stopsKey();
+      <small>${n ? "" : `${waitText(l)}, then `}${clock(toMin(l.depart))} to ${clock(toMin(l.arrive))} · ${plural(l.stops, "stop")}${l.fare != null ? ` · ${rupees(l.fare)}` : ""} · ${l.level.toLowerCase()}, seat chance ${l.seat_chance}%</small></span></div>
+      ${stopsList(l.stop_names, l.profile)}</div>`).join("")
+      + (o.walk_end ? `<div class="xfer">${IC.walk}Walk about ${plural(o.walk_end, "minute")} (${o.walk_end_m} m) to ${esc(p.destination)}.</div>` : "") + stopsKey();
     return `<article class="card opt ${o.tags.includes("Best overall") ? "best" : ""} ${i === 0 ? "open" : ""}">
       ${tags ? `<div class="opt-tags">${tags}</div>` : ""}
-      <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}${o.wait != null ? `, including about ${plural(o.wait, "minute")} waiting` : ""}</p></div><div class="opt-chain">${chain}</div></div>
+      <div class="opt-head"><div><p class="t-title tnum">${o.minutes} min</p><p class="t-small muted">${o.transfers ? plural(o.transfers, "change") : "Direct"}${o.wait != null ? `, including about ${plural(o.wait, "minute")} waiting${o.walk_start + o.walk_end ? ` and ${plural(o.walk_start + o.walk_end, "minute")} walking` : ""}` : ""}</p></div><div class="opt-chain">${chain}</div></div>
       ${seatMeter(o)}
       ${o.live !== undefined ? `<div class="kv live-kv"><span><i class="live-dot"></i>Live</span><b>${o.live
         ? (o.live.stops_away ? `Next ${esc(routeName(o.legs[0].route.number))} is ${plural(o.live.stops_away, "stop")} away, due in about ${plural(o.live.eta, "minute")}` : `A ${esc(routeName(o.legs[0].route.number))} is at the stop now`)
         : "No bus seen coming yet"}</b></div>` : ""}
-      <div class="kv"><span>Wait at ${esc(o.legs[0].board)}</span><b class="tnum">about ${plural(o.legs[0].wait, "minute")}</b></div>
+      <div class="kv"><span>Bus at ${esc(o.legs[0].board)}</span><b class="tnum">${o.legs[0].wait_source === "live" ? "" : "about "}${clock(toMin(o.legs[0].depart))}<small class="kv-sub">${o.legs[0].wait_source === "live" ? "from the live feed" : `${o.legs[0].wait ? `in about ${plural(o.legs[0].wait, "minute")}, ` : ""}from the timetable`}</small></b></div>
       <div class="kv"><span>How often it comes</span><b>${every(o.legs[0]).replace(/^a bus/, "A bus").replace(/^few/, "Few").replace(/^timetable/, "Timetable")}</b></div>
-      <div class="kv"><span>Arrives (expected)</span><b class="tnum">${clock(toMin(o.arrive))}</b></div>
-      ${o.fare != null ? `<div class="kv"><span>Fare per person, e-ticket${o.legs.length > 1 ? `<br><small class="t-caption">one ticket per bus: ${o.legs.map((l) => rupees(l.fare)).join(" + ")}</small>` : ""}</span><b class="tnum">${rupees(o.fare)}</b></div>` : ""}
+      <div class="kv"><span>You reach ${esc(p.destination)}</span><b class="tnum">about ${clock(toMin(o.arrive))}</b></div>
+      ${o.fare != null ? `<div class="kv"><span>Fare per person, e-ticket${o.legs.length > 1 ? `<br><small class="t-caption">one ticket per bus: ${o.legs.map((l) => rupees(l.fare)).join(" + ")}</small>` : ""}<br><small class="t-caption">Free for women with a Pink pass</small></span><b class="tnum">${rupees(o.fare)}</b></div>` : ""}
       ${o.km != null ? `<div class="kv"><span>Distance by bus</span><b class="tnum">${o.km} km</b></div>` : ""}
       <div class="kv"><span>Crowding</span><b class="tnum">${o.crowd} of 100 · ${o.level}</b></div>
       <div class="kv"><span>Chance of a seat when you board</span><b class="tnum">${o.seat_chance}%</b></div>
@@ -776,7 +779,7 @@ function renderPlan(p, from, to) {
     ${p.only_low_data ? notice("warn", "Few tickets on these routes", "Every bus between these stops has thin or unclear ticket data for October, so these times and crowding levels are rough.", IC.alert) : ""}
     <div>${cards}</div>
     ${p.hidden_low_data ? `<p class="t-small muted" style="margin-top:12px">${p.hidden_low_data === 1 ? "1 more route also runs between these stops. It's hidden because its October ticket data is too thin to trust its times." : `${p.hidden_low_data} more routes also run between these stops. They're hidden because their October ticket data is too thin to trust their times.`}</p>` : ""}${curve}
-    ${notice("info", "How these times are worked out", "Each ride uses the route's real distance (Delhi bus GTFS) and the speed buses actually moved at on that stretch of road at that time of day, measured by GPS on 14, 15, 16 and 18 October 2026. Waiting is the average wait for someone arriving at the stop around that time, from the DTC timetable. Crowding comes from October 2026 e-tickets. Fares are what October e-tickets cost for the same ride: the DTC fare less the 10% e-ticket discount.", IC.info)}</div>`;
+    ${notice("info", "How these times are worked out", "Each ride is timed stop by stop from how long buses really took on that stretch at that hour, from bus GPS on 14, 15, 16 and 18 October 2026. When the live feed shows the next bus, the wait is that bus's real arrival; otherwise it's the average wait from the DTC timetable. Stops a short walk apart count as one place, with the walk added. Crowding comes from October 2026 e-tickets. Fares are what October e-tickets cost for the same ride: the DTC fare less the 10% e-ticket discount.", IC.info)}</div>`;
   $$(".opt + .opt", res).forEach((el) => (el.style.marginTop = "12px"));
   const read = $(".bars-read", res);
   $$(".bars .b", res).forEach((b) => (b.onclick = b.onmouseenter = b.onfocus = () => {
@@ -1051,6 +1054,10 @@ async function pageAbout() {
           <div class="kv"><span>Scheduled departures used for waiting times</span><b class="tnum">${inr(v.schedule.departures)}</b></div>` : ""}
           ${v.fares ? `<div class="kv"><span>E-tickets whose price our fare table matches exactly</span><b class="tnum">${pct(v.fares.exact_share)}</b></div>
           <div class="kv"><span>Fare table, typical error per ticket</span><b class="tnum">${rupees(v.fares.mean_abs_error_rs)}</b></div>` : ""}
+          ${v.runtimes ? `<div class="kv"><span>Tickets on routes timed from real bus trips</span><b class="tnum">${pct(v.runtimes.tickets_share)}</b></div>
+          <div class="kv"><span>Ride times checked against ${inr(v.runtimes.new.n)} real rides on 16 October (a day left out of the model), typical error</span><b class="tnum">${v.runtimes.new.median_abs_min} min</b></div>
+          <div class="kv"><span>Rides within 5 minutes of what the bus really took</span><b class="tnum">${pct(v.runtimes.new.within_5_min)}</b></div>
+          <div class="kv"><span>The earlier speed-map method, same rides: typical error, within 5 minutes</span><b class="tnum">${v.runtimes.old.median_abs_min} min, ${pct(v.runtimes.old.within_5_min)}</b></div>` : ""}
           ${sp.holdout ? `<div class="kv"><span>Speeds on ${date(sp.holdout.test_day.replace(/_/g, "-"))} predicted from earlier days, typical error</span><b class="tnum">${sp.holdout.median_abs_pct_error}%</b></div>` : ""}</div>
       </div><div>
         <div class="section-title"><h2 class="t-heading">Bus speed through the day</h2></div>
@@ -1072,12 +1079,13 @@ async function pageAbout() {
         <li><b>Each ticket counts on every stretch it rides.</b> A ticket from stop A to stop F is one person on board from A all the way to F.</li>
         <li><b>Weekdays, Saturdays, and Sundays or holidays are kept apart.</b> Holidays are spotted as weekdays with much lower demand.</li>
         <li><b>A crowd index from 0 to 100.</b> It's calibrated across the whole network, so busy corridors and quiet hours both read clearly.</li>
-        <li><b>Travel times from real roads and real buses.</b> Each ride is timed stretch by stretch: the stretch's length comes from the timetable's stop positions, and its speed from how fast GPS-tracked buses moved through that part of Delhi in that half hour, stops at signals and bus stops included. Buses parked at terminals are left out.</li>
-        <li><b>Waiting from the timetable.</b> The DTC timetable lists every scheduled departure. Shifted to each stop by its scheduled running time, it gives how often a bus comes there at that hour and the average wait for someone who turns up then. That wait is part of every trip time, and a change of bus adds a 3-minute walk plus the wait for the next bus.</li>
+        <li><b>Ride times from real bus trips.</b> Every GPS-tracked bus trip on 14, 15, 16 and 18 October was followed along its route: when it reached and left each stop. Each stretch between two stops is timed by how long buses really took there at that hour, stops at signals and bus stops included. A stretch no bus was seen on falls back to the route's length and the area's measured bus speed.</li>
+        <li><b>Nearby stops count as one place.</b> The same spot often has several names in the data ("Tilangpur Kotla" and "Tilang Pur Kotla"), and the stop across the road is another. Trips can start, end or change buses at any stop within a short walk, with the walk added to the time.</li>
+        <li><b>Waiting from the live feed, else the timetable.</b> When the live bus feed shows the next bus coming, the wait is that bus's real arrival. Otherwise: the DTC timetable lists every scheduled departure. Shifted to each stop by its scheduled running time, it gives how often a bus comes there at that hour and the average wait for someone who turns up then. That wait is part of every trip time, and a change of bus adds a 3-minute walk plus the wait for the next bus.</li>
         <li><b>Fares from what riders paid.</b> For each route, the fare for riding a given number of stops is the price most October e-tickets paid for that ride. Fares come in fixed steps (the DTC fare less the 10% e-ticket discount), and a longer ride never costs less. A trip with a change of bus needs one ticket per bus.</li>
         <li><b>Live by default.</b> The site follows the current time in Delhi and moves on every half hour. Crowding is what's typical for that time, learned from October tickets, not a live count.</li>
       </ol></div>
-      ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Routes with fewer than 600 tickets are marked as limited data. A few routes (about 2% of tickets) aren't in the current timetable, so they are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Waiting times follow the DTC timetable; real buses can bunch up or run late.`, IC.alert)}
+      ${notice("warn", "What this can't tell you yet", `E-tickets are only some of the riders, so the index compares crowding rather than counting people. Women riding free on the Pink pass, and paper and pass tickets, aren't in the data at all, so real buses can be fuller than shown. Routes with fewer than 600 tickets are marked as limited data. A few routes (about 2% of tickets) aren't in the current timetable, so they are timed from their end stops only. Saturday speeds are the average of weekday and Sunday speeds, because no Saturday GPS was processed. Without a live bus to go on, waiting times follow the DTC timetable; real buses can bunch up or run late. Ride times are what buses took in October; a day with unusual traffic will differ.`, IC.alert)}
       <p class="t-small muted">Seat Signal is built for the Transport Stack Hackathon 2026, Delhi, Problem 2: crowdedness-aware journey planner. Data: ONDC bus e-ticketing from Transport Stack and IIIT Delhi. API documentation: <a class="link" href="/docs">/docs</a>.</p></div>`;
     const wkB = v.weekday_boardings_by_slot.slice(10, 47), suB = v.weekend_boardings_by_slot.slice(10, 47);
     iChart($("#about-chart"), [{ values: suB, color: "var(--silver-edge)", width: 1.5 }, { values: wkB, color: "var(--brand)", fill: 0.07, marker: true }], { max: Math.max(...wkB), index: 8,
@@ -1228,7 +1236,7 @@ const THEME_KEY = "ss-theme", sysDark = matchMedia("(prefers-color-scheme: dark)
 function paintTheme(t) {
   const root = document.documentElement;
   root.dataset.theme = t;
-  $('meta[name="theme-color"]')?.setAttribute("content", t === "dark" ? "#141A22" : "#FFFFFF");
+  $('meta[name="theme-color"]')?.setAttribute("content", t === "dark" ? "#0E131A" : "#FFFFFF");
   const b = $("#theme-btn");
   if (b) { b.setAttribute("aria-pressed", t === "dark"); b.setAttribute("aria-label", t === "dark" ? "Switch to day mode" : "Switch to night mode"); b.title = b.getAttribute("aria-label"); }
   mapConfig().then(({ carto_key: key }) => liveMaps.forEach((m) => m.eachLayer((l) => {

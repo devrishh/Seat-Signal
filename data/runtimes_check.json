@@ -1,0 +1,21 @@
+{
+ "test_day": "16",
+ "rides": 6000,
+ "real_median_min": 15.2,
+ "old": {
+  "n": 6000,
+  "median_abs_min": 2.7,
+  "within_5_min": 0.703,
+  "within_20pct": 0.536,
+  "bias_min": 1.1,
+  "ratio": 1.09
+ },
+ "new": {
+  "n": 5557,
+  "median_abs_min": 1.7,
+  "within_5_min": 0.802,
+  "within_20pct": 0.668,
+  "bias_min": 0.0,
+  "ratio": 1.0
+ }
+}

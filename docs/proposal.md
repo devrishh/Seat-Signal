@@ -35,7 +35,7 @@ For people who run the buses, there's a page ranking the busiest routes at any h
 4. We average that over October, separately for weekdays, Saturdays, and Sundays or holidays, giving riders on board for each route, direction, stretch and half hour.
 5. E-tickets are only some of the riders, so we turn the load into a 0 to 100 crowd index calibrated across the whole network, then into the four levels above.
 
-Travel times come from bus GPS: how fast buses really moved through each part of the city in each half hour, applied to the length of each stretch from the GTFS. Fares come from what people actually paid for the same ride.
+Travel times come from bus GPS: we followed about 280,000 real bus trips stop by stop and time each stretch by how long buses really took there at that hour. When the live feed shows your bus, the wait is its real arrival. Fares come from what people actually paid for the same ride.
 
 ## The data we used
 
@@ -51,11 +51,11 @@ We checked the estimates against things we already know about Delhi's buses, and
 - weekdays carry about twice the riders of Sundays, and the two October holidays (2 and 20 October) stand out on their own
 - the four weeks of October look alike: riders by route and half hour correlate at 0.88 or more between any two weeks
 - 99.7% of tickets between two timetable stops ride forwards along its order, so the stop order is right
-- speeds for 16 October, predicted from the two days before, are off by 9.7% on a typical stretch
+- on 6,000 real rides from 16 October (a day the model never saw), predicted ride times are off by 1.7 minutes typically, and 80% land within 5 minutes
 
 ## What we'd do in Phase 2
 
 - Add conductor (ETM) ticket counts to turn the crowd index into real numbers of people on board
 - Rebuild individual bus trips from vehicle numbers where they exist, and use bus length (9 m or 12 m) so the same load reads right on both
-- Learn real waits and today's delays from the live feed, instead of trusting the timetable
+- Learn today's delays from the live feed, not just where the next bus is
 - Give operators a simple report of overloaded routes and hours, and where an extra bus would help most

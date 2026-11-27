@@ -49,19 +49,34 @@ wrong stretch. The GTFS order fixes both.
 
 ## 3. Travel times
 
-A ride is timed stretch by stretch. Each stretch's **length** comes from the GTFS stop
-positions along the route. Each stretch's **speed** is how fast GPS-tracked buses actually
-moved through that ~1 km grid cell in that half hour, including time stopped at signals and
-bus stops. Buses standing still for 10 minutes or more (layovers at terminals) are left out.
+**Ride times from real bus trips** (`pipeline/gps_runtimes.py`, `pipeline/build_runtimes.py`).
+Every GPS-tracked bus trip on 14, 15, 16 and 18 October was followed along its route: the GPS
+log carries each bus's route and trip, so for each trip we note when the bus reached and left
+each stop (first and last GPS ping within 90 m). That gives about 280,000 trips and 4.4 million
+stop arrivals. Each stretch between two stops is timed by the median time buses took there in
+that hour (weekdays and Sundays apart), stops at signals and bus stops included. Where a stop was
+missed, the time is shared over the stretches by their length along the road. Readings that
+imply under 3 or over 65 km/h are dropped, which also stops a misplaced stop from swallowing a
+whole trip.
 
 | | |
 |---|---:|
-| Tickets on routes with a measured length (GTFS path, or end-to-end distance × 1.362 detour) | **100%** (98.4% from the GTFS path) |
-| Weekday bus movement in grid cells with their own measured speed | 99.6% |
-| **Held-out check:** 16 Oct speeds predicted from 14–15 Oct, typical (median) error | **9.7%** |
-| Same check: share of bus movement predicted within 20% | 74.0% |
+| Routes with stop-to-stop times from real trips | 1,604 (98.0% of tickets) |
+| **Held-out check:** 6,000 real rides on 16 Oct, model built from 14, 15 and 18 Oct, typical (median) error | **1.7 min** (median ride 15 min) |
+| Same check: rides predicted within 5 minutes / within 20% | 80% / 67% |
+| Same check: bias | none (predictions 1.00 times the real time) |
+| The earlier speed-map method on the same rides: typical error, within 5 min, bias | 2.7 min, 70%, 9% too slow |
 
-Average weekday bus speed across Delhi (km/h):
+By ride length, typical error went from 2.1 to 1.1 min (3–15 min rides), 3.1 to 2.3 (15–30),
+5.9 to 4.6 (30–60) and 11.0 to 10.3 (over an hour). About 3% of real rides take more than
+twice or less than half the prediction under either method: buses that halt mid-route or hit a
+jam no average can see.
+
+A stretch no bus was seen on falls back to the earlier method: the stretch's length from the
+GTFS, at the speed GPS-tracked buses moved through that ~1 km grid cell in that half hour,
+scaled down by 8% because that method ran slow.
+
+Average weekday bus speed across Delhi, from the grid method (km/h):
 
 | 3 am | 7 am | 9 am | 12 pm | 3 pm | 6 pm | 7 pm | 9 pm | 11 pm |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -73,9 +88,15 @@ Spot checks (weekday, from the app):
 
 | Trip | Route | Distance | Time |
 |---|---|---:|---:|
-| Dhaula Kuan → ITO, 10:43 am | 720 | 9.7 km | 36 min |
-| Dhaula Kuan → ITO, 6:30 pm | 720 | 9.7 km | 51 min |
-| Anand Vihar ISBT → Uttam Nagar Terminal, 10:43 am | 740 NS | 37.1 km | about 2.5 h |
+| Dhaula Kuan → ITO, 10:43 am | 720 | 9.8 km | 37 min |
+| Dhaula Kuan → ITO, 6:30 pm | 720 | 9.8 km | 55 min |
+| Anand Vihar ISBT → Uttam Nagar Terminal, 10:43 am | 740 NS | 38.0 km | 75 min (was about 2.5 h) |
+| Tilang Pur Kotla → Dhansa Stand, 10:49 am | 978 | 6.8 km | 27 min (was 33; buses took 23–29 min on 16 Oct) |
+
+**Stops a short walk apart.** 968 spots in the data carry two or more stop names (about 40% of
+boardings), such as "Tilangpur Kotla" and "Tilang Pur Kotla", each with its own routes. Trips
+can start or end at any stop within 250 m and change buses between stops within 150 m, with the
+walk added at 4.5 km/h. Before this, a search for "Tilangpur Kotla" could never find route 978.
 
 **Safeguards.** A change of bus is only offered where both routes really stop at the same
 place: 140 stop names refer to more than one place in Delhi (there is more than one Ganesh
@@ -138,6 +159,10 @@ stop. The wait shown is the average for someone arriving within 15 minutes eithe
 routes with no timetable use 8 minutes. Every trip time includes it, and a change of bus adds a 3-minute walk
 plus the wait for the next bus.
 
+When planning for now and the live GPS feed shows the next bus coming towards the stop, the wait is that
+bus's real arrival instead (its distance timed with the stop-to-stop ride times), and the arrival time
+follows from it. Plans for "now" use the actual minute, not the half hour the app's clock shows.
+
 ## 8. Fares
 
 For each route, the fare for riding a given number of stops is the most common price paid on
@@ -156,12 +181,15 @@ neighbouring towns. A trip with a change of bus needs one ticket per bus.
 ## 9. Known limits
 
 - **E-tickets are a sample.** ONDC tickets are some of the riders, so the Crowd Index is
-  relative, not a passenger count. Routes with fewer than 600 tickets are labelled "limited
+  relative, not a passenger count. Women riding free on the Pink pass aren't in the data at all. Routes with fewer than 600 tickets are labelled "limited
   data" and are left out of trip results whenever better routes exist.
-- **Saturday speeds** are the average of weekday and Sunday speeds; no Saturday GPS was
+- **Saturday ride times** are the average of weekday and Sunday times; no Saturday GPS was
   processed (adding one more day file fixes this).
+- **Ride times are October's.** A day with unusual traffic (or none) will differ. One rider
+  reported route 978 from Tilangpur Kotla to Dhansa in 11 minutes on 27 November; in October
+  the same stretch took 15 minutes at the fastest (late night) and 23–29 minutes mid-morning.
 - **A few routes aren't in the GTFS.** About 1.6% of tickets are on routes the current feed doesn't list. They are
   timed from the distance between their two end stops and drawn straight between stops.
-- **Waits follow the timetable.** Real buses bunch up or run late, so actual waits vary more than the app shows.
-- **GPS route IDs aren't linked to ticket routes**, so speeds are measured per area of the
-  city, not per route.
+- **Without a live bus, waits follow the timetable.** Real buses bunch up or run late, so actual waits vary more than the app shows.
+- **Stop order errors.** A few routes still have a stop out of place (route 978 puts Najafgarh
+  Chawla Stand mid-route); ride times step over them, but the stop list shows them where the data put them.

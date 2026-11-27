@@ -221,18 +221,27 @@ def leg_out(rid, i, j, minute, d) -> dict:
                 stop_names=[STOPS[s]["name"] for s in r["stops"][i:j + 1]])
 
 
-def evaluate(option: tuple, minute: float, d: int) -> dict:
-    """option = ((rid, i, j), ...) legs."""
-    legs, t = [], minute
+def evaluate(option: tuple, minute: float, d: int, a: str | None = None, b: str | None = None,
+             live_eta: float | None = None) -> dict:
+    """option = ((rid, i, j), ...) legs. a and b: the stops the rider chose, when the trip starts
+    or ends at a stop a short walk away (the walk is part of the trip)."""
+    first, last = option[0], option[-1]
+    board_key, alight_key = ROUTES[first[0]]["stops"][first[1]], ROUTES[last[0]]["stops"][last[2]]
+    walk_start = walk_min(a, board_key) if a else 0
+    walk_end = walk_min(alight_key, b) if b else 0
+    legs, t = [], minute + walk_start
     for n, (rid, i, j) in enumerate(option):
         if n:
-            t += WALK_MIN
+            t += max(WALK_MIN, walk_min(ROUTES[option[n - 1][0]]["stops"][option[n - 1][2]], ROUTES[rid]["stops"][i]))
         w, every, src = wait_at(rid, i, t)
+        if n == 0 and live_eta is not None and live_eta >= walk_start:
+            w, src = live_eta - walk_start, "live"      # the real next bus, from the live feed
         t += w
         leg = leg_out(rid, i, j, t, d)
         leg.update(wait=round(w), every=every, wait_source=src)
         legs.append(leg)
         t += leg["minutes"]
+    t += walk_end
     total = t - minute
     w = np.array([l["stops"] for l in legs], float)
     crowd = float((np.array([l["crowd"] for l in legs]) * w).sum() / w.sum())
@@ -241,10 +250,59 @@ def evaluate(option: tuple, minute: float, d: int) -> dict:
                 crowd=round(crowd), peak=max(l["peak"] for l in legs), level=level(crowd),
                 seat_chance=legs[0]["seat_chance"], stops=int(w.sum()),
                 km=None if any(l["km"] is None for l in legs) else round(sum(l["km"] for l in legs), 1),
-                time_source="gps" if all(l["time_source"] == "gps" for l in legs) else "estimate",
+                time_source="trips" if all(l["time_source"] == "trips" for l in legs)
+                else "gps" if all(l["time_source"] in ("gps", "trips", "trips+estimate") for l in legs) else "estimate",
                 fare=None if any(l["fare"] is None for l in legs) else sum(l["fare"] for l in legs),
                 wait=sum(l["wait"] for l in legs), ride=sum(l["minutes"] for l in legs),
+                walk_start=walk_start, walk_end=walk_end,
+                walk_start_m=round((TRAVEL.walk_km(a, board_key) or 0) * 1000, -1) if walk_start else 0,
+                walk_end_m=round((TRAVEL.walk_km(alight_key, b) or 0) * 1000, -1) if walk_end else 0,
                 confidence="low" if any(l["route"]["low_data"] for l in legs) else "high")
+
+
+# ---------------------------------------------------------------- stops you can walk between
+# The same spot often appears under several names ("Tilangpur Kotla" and "Tilang Pur Kotla",
+# four names for Dhansa Bus Stand), each with its own routes; and the stop across the road is
+# another name again. Planning treats stops within a short walk as one place: you can board or
+# get off at any of them, and change buses between them, with the walk added to the trip.
+WALK_KM = 0.25            # board or get off at a stop this close to the one you chose
+CHANGE_KM = 0.15          # change buses between stops this close
+WALK_MIN_PER_KM = 1.25 / 4.5 * 60     # 4.5 km/h on foot, streets 25% longer than a straight line
+
+
+def _near_index():
+    cell = 0.003
+    grid: dict[tuple, list] = {}
+    for k, (la, lo) in TRAVEL.pts.items():
+        grid.setdefault((int(la / cell), int(lo / cell)), []).append(k)
+    near: dict[str, list] = {}
+    for k, (la, lo) in TRAVEL.pts.items():
+        ci, cj = int(la / cell), int(lo / cell)
+        out = []
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                for k2 in grid.get((ci + di, cj + dj), ()):
+                    if k2 != k and k2 in STOP_ROUTES:
+                        km = TRAVEL.walk_km(k, k2)
+                        if km is not None and km <= WALK_KM:
+                            out.append((k2, km))
+        near[k] = sorted(out, key=lambda x: x[1])
+    return near
+
+
+NEAR = _near_index()
+
+
+def walk_min(a: str, b: str) -> int:
+    """Minutes on foot between two stops (0 for two names at one spot)."""
+    if a == b:
+        return 0
+    km = TRAVEL.walk_km(a, b)
+    return 0 if km is None or km < 0.03 else max(1, round(km * WALK_MIN_PER_KM))
+
+
+def around(key: str, km: float = WALK_KM) -> list[str]:
+    return [key] + [k for k, d in NEAR.get(key, ()) if d <= km]
 
 
 def find_stop(key: str) -> str:
@@ -258,34 +316,47 @@ def find_stop(key: str) -> str:
 
 @lru_cache(maxsize=4096)
 def candidate_options(a: str, b: str) -> list[tuple]:
-    direct, seen = [], set()
-    for rid, i in STOP_ROUTES[a]:
-        for rid2, j in STOP_ROUTES[b]:
-            if rid2 == rid and j > i:
-                direct.append(((rid, i, j),))
-                seen.add(rid)
-    # one-transfer journeys
+    """Bus journeys from stop a to stop b, direct or with one change. Boarding, getting off and
+    changing can happen at any stop within a short walk (see `around`)."""
+    starts, ends = around(a), around(b)
+    if set(starts) & set(ends):
+        ends = [e for e in ends if e not in starts] or ends
+    direct: dict[str, tuple] = {}
+    for s in starts:
+        ws = walk_min(a, s)
+        for rid, i in STOP_ROUTES.get(s, ()):
+            for e in ends:
+                we = walk_min(e, b)
+                for rid2, j in STOP_ROUTES.get(e, ()):
+                    if rid2 == rid and j > i:
+                        n = (ws + we) * 2 + (j - i)          # a minute's walk weighs like two stops
+                        if rid not in direct or n < direct[rid][0]:
+                            direct[rid] = (n, ((rid, i, j),))
+    seen = set(direct)
+    # one-change journeys: ride from a, walk at most CHANGE_KM at the change, ride to b
     after: dict[str, list] = {}
-    for rid, i in STOP_ROUTES[a]:
-        stops = ROUTES[rid]["stops"]
-        for k in range(i + 1, min(len(stops), i + MAX_TRANSFER_SCAN)):
-            after.setdefault(stops[k], []).append((rid, i, k))
+    for s in starts:
+        for rid, i in STOP_ROUTES.get(s, ()):
+            stops = ROUTES[rid]["stops"]
+            for k in range(i + 1, min(len(stops), i + MAX_TRANSFER_SCAN)):
+                after.setdefault(stops[k], []).append((rid, i, k))
     best: dict[tuple, tuple] = {}
-    for rid2, j in STOP_ROUTES[b]:
-        stops = ROUTES[rid2]["stops"]
-        for k in range(max(0, j - MAX_TRANSFER_SCAN), j):
-            for rid1, i, k1 in after.get(stops[k], []):
-                if ROUTES[rid1]["base"] == ROUTES[rid2]["base"] or rid1 in seen or rid2 in seen:
-                    continue
-                if not TRAVEL.same_place(stops[k], rid1, k1, rid2, k):
-                    continue
-                n = (k1 - i) + (j - k)
-                key = (rid1, rid2)
-                if key not in best or n < best[key][0]:
-                    best[key] = (n, ((rid1, i, k1), (rid2, k, j)))
+    for e in ends:
+        for rid2, j in STOP_ROUTES.get(e, ()):
+            stops = ROUTES[rid2]["stops"]
+            for k in range(max(0, j - MAX_TRANSFER_SCAN), j):
+                for here in around(stops[k], CHANGE_KM):
+                    for rid1, i, k1 in after.get(here, []):
+                        if ROUTES[rid1]["base"] == ROUTES[rid2]["base"] or rid1 in seen or rid2 in seen:
+                            continue
+                        if here == stops[k] and not TRAVEL.same_place(stops[k], rid1, k1, rid2, k):
+                            continue
+                        n = (k1 - i) + (j - k)
+                        key = (rid1, rid2)
+                        if key not in best or n < best[key][0]:
+                            best[key] = (n, ((rid1, i, k1), (rid2, k, j)))
     transfers = [v[1] for v in sorted(best.values(), key=lambda x: x[0])[:40]]
-    direct.sort(key=lambda o: o[0][2] - o[0][1])
-    return direct[:12] + transfers
+    return [v[1] for v in sorted(direct.values(), key=lambda x: x[0])][:12] + transfers
 
 
 # ---------------------------------------------------------------- endpoints
@@ -365,6 +436,9 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
     if d is None:
         raise HTTPException(400, "day must be weekday, saturday or sunday")
     minute = parse_time(time)
+    if is_now(minute, d):                 # "now" arrives as the half hour the app is showing: use the real minute
+        _n = datetime.now(IST)
+        minute = _n.hour * 60 + _n.minute
     near = TRAVEL.walk_km(a, b)
     if near is not None and near <= 0.4:
         return dict(origin=STOPS[a]["name"], destination=STOPS[b]["name"], options=[], day=day,
@@ -381,7 +455,9 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
     hidden_low_data = len({r for o in cands if not is_reliable(o) for r, _, _ in o}) if solid else 0
     only_low_data = not solid
     cands = solid or cands
-    opts = [evaluate(o, minute, d) | {"_key": o} for o in cands]
+    live_now = LIVE.on and is_now(minute, d)
+    lives = {o: (live_next(o[0][0], o[0][1], minute, d) if live_now else None) for o in cands}
+    opts = [evaluate(o, minute, d, a, b, live_eta=(lives[o] or {}).get("eta")) | {"_key": o} for o in cands]
     # a 'ride' of no distance (two names for one terminal) is not a real option
     opts = [o for o in opts if all(l["km"] is None or l["km"] >= 0.1 for l in o["legs"])] or opts
     direct = sorted([o for o in opts if o["transfers"] == 0], key=lambda o: o["minutes"])[:4]
@@ -410,7 +486,7 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
     for off in range(-60, 121, 30):
         m2 = minute + off
         if 300 <= m2 % 1440 <= 1380:
-            e = evaluate(best["_key"], m2, d)
+            e = evaluate(best["_key"], m2, d, a, b)
             times.append(dict(depart=fmt(m2), offset=off, crowd=e["crowd"], minutes=e["minutes"], level=e["level"]))
     better = min(times, key=lambda x: (x["crowd"], abs(x["offset"]))) if times else None
     tip = None
@@ -420,20 +496,19 @@ def plan(origin: str = Query(..., alias="from"), dest: str = Query(..., alias="t
         tip = dict(depart=better["depart"], crowd=better["crowd"], drop_pct=drop,
                    offset=better["offset"],
                    text=f"Leave {abs(better['offset'])} minutes {when}, at {ampm(m2s(better['depart']))}, and the bus is about {drop}% less crowded.")
-    live_now = LIVE.on and is_now(minute, d)
     for o in opts:
         for leg, (rid, i, j) in zip(o["legs"], o["_key"]):
             leg["shape"] = TRAVEL.shape(rid, i, j)        # for the map
         if live_now:
-            rid, i, _ = o["_key"][0]
-            o["live"] = live_next(rid, i, minute, d)    # None: no bus seen coming yet
+            o["live"] = lives[o["_key"]]                # None: no bus seen coming yet
         o.pop("_key", None)
         o.pop("score", None)
     return dict(origin=STOPS[a]["name"], destination=STOPS[b]["name"], depart=fmt(minute), day=day,
                 options=opts, departure_curve=times, tip=tip,
                 hidden_low_data=hidden_low_data, only_low_data=only_low_data,
-                note="Crowding from October 2026 e-tickets. Travel times from route distances (Delhi bus GTFS) "
-                     "and bus speeds measured by GPS in October 2026.")
+                note="Crowding from October 2026 e-tickets. Ride times from how long buses really took between "
+                     "stops (GPS, October 2026); waits from the live bus feed when it shows the next bus, otherwise "
+                     "the DTC timetable.")
 
 
 @app.get("/api/route/{rid}")
@@ -517,7 +592,12 @@ def stop(key: str, time: str | None = None, day: str | None = None):
     slot = (parse_time(time) // 30) % 48
     rows, prof = [], np.zeros(48)
     n = 0
-    for rid, i in STOP_ROUTES[k]:
+    same_spot = [k] + [k2 for k2, km in NEAR.get(k, ()) if km < 0.03]     # other names for this very spot
+    seen = set()
+    for rid, i in [x for k2 in same_spot for x in STOP_ROUTES.get(k2, ())]:
+        if rid in seen:
+            continue
+        seen.add(rid)
         r = ROUTES[rid]
         seg = min(i, len(r["stops"]) - 2)          # stretch leaving this stop (or arriving, at the last stop)
         col = r["crowd"][d, :, seg]
@@ -556,7 +636,7 @@ def besttime(origin: str = Query(..., alias="from"), dest: str = Query(..., alia
         return dict(origin=STOPS[a]["name"], destination=STOPS[b]["name"], day=day, slots=[])
     slots = []
     for m in range(330, 1381, 30):           # 5:30 am to 11:00 pm
-        opts = [evaluate(o, m, d) for o in cands]
+        opts = [evaluate(o, m, d, a, b) for o in cands]
         for o in opts:
             o["score"] = (o["minutes"] * (1 + 0.6 * o["crowd"] / 100) + 15 * o["transfers"]
                           + (25 if o["confidence"] == "low" else 0))
@@ -587,6 +667,11 @@ def validation():
                          tickets_share=round(sum(ROUTES[k]["tickets"] for k in SCHED if k in ROUTES) / tot, 4))
     st = ROOT / "data" / "stability.json"
     v["stability"] = json.loads(st.read_text()) if st.exists() else None
+    rc = ROOT / "data" / "runtimes_check.json"
+    v["runtimes"] = json.loads(rc.read_text()) if rc.exists() else None
+    if v["runtimes"]:
+        v["runtimes"]["tickets_share"] = round(sum(ROUTES[k]["tickets"] for k in TRAVEL.rt.by if k in ROUTES) / tot, 4)
+        v["runtimes"]["routes"] = len(TRAVEL.rt.by)
     return v
 
 
